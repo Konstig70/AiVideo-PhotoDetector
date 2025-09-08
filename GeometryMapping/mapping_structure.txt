@@ -1,0 +1,73 @@
+┌────────────────────────────┐
+│      Video Input           │
+│ (Upload or file path/URL)  │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│   Frame Extraction (OpenCV)│
+│  - Extract frames          │
+│  - Resize for speed        │
+│  - Convert color space     │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Human Feature Detection    │
+│ (MediaPipe)                │
+│ - Hands: 5 fingers, angles│
+│ - Pose: limb ratios        │
+│ - Face Mesh: symmetry      │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Object / Shape Detection    │
+│ (OpenCV)                    │
+│ - Edge detection / contours │
+│ - Approximate polygons      │
+│ - Color-based segmentation  │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Geometry Plausibility Checks│
+│ - Hands / Pose / Face       │
+│ - Object contour checks     │
+│ - Flag anomalies per frame  │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Temporal Consistency        │
+│ - Track anomalies across N  │
+│   frames                    │
+│ - Streak logic / sliding    │
+│   window                    │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Anomaly Score Aggregation   │
+│ - Combine human + object    │
+│ - Normalize to 0-1 score    │
+│ - Generate video-level      │
+│   authenticity score        │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Visualization / UI          │
+│ - Overlay landmarks / boxes │
+│ - Plot anomaly timeline     │
+│ - Highlight suspicious areas│
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│  Output / Decision          │
+│ - Video likely AI / Real    │
+│ - Confidence score          │
+│ - Export results / report   │
+└────────────────────────────┘
+
