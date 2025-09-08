@@ -1,0 +1,40 @@
+┌────────────────────────────┐
+│ Gather Inputs               │
+│ - Geometry anomaly scores   │
+│ - Metadata anomaly scores   │
+│ - News anomaly scores       │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Reasoning & Explanation     │
+│ - Combine signals logically │
+│ - Use rules or OpenAI API   │
+│ - Generate human-readable   │
+│   reasoning                 │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Format Justification        │
+│ - Natural language summary  │
+│ - Include detected anomalies│
+│ - Include frame examples    │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Visualization / Reporting   │
+│ - Overlay anomalies on video│
+│ - Highlight key evidence    │
+│ - Optionally export PDF / report│
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Output / Final Verdict      │
+│ - Video likely AI / Real    │
+│ - Confidence score          │
+│ - Export justification text │
+└────────────────────────────┘
+

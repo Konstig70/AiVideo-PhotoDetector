@@ -1,0 +1,45 @@
+┌────────────────────────────┐
+│      Video Input / Claim   │
+│ - Extract title, description│
+│ - Extract event keywords    │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Query News Sources          │
+│ - Use Bing / Google / X API │
+│ - Retrieve articles / tweets│
+│ - Filter by date / location │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Summarize Coverage          │
+│ - Summarize news articles   │
+│ - Extract key event details │
+│ - Check event presence / absence │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Plausibility Scoring        │
+│ - If event not reported in  │
+│   credible sources → flag   │
+│ - Assign news anomaly score │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Visualization / UI          │
+│ - Display related articles  │
+│ - Highlight missing coverage│
+│ - Show anomaly score        │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Output / Score Integration  │
+│ - Feed into final            │
+│   authenticity score         │
+└────────────────────────────┘
+

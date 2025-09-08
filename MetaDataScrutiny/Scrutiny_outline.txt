@@ -1,0 +1,47 @@
+┌────────────────────────────┐
+│      Video Input           │
+│ (Uploaded or file path/URL)│
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Metadata Extraction         │
+│ (ffmpeg / pymediainfo)      │
+│ - Extract codec, resolution │
+│ - Extract timestamps        │
+│ - Extract device info       │
+│ - Extract editing traces    │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Metadata Plausibility Checks│
+│ - Verify timestamp consistency │
+│ - Check missing or abnormal device info │
+│ - Flag unusual encoding or edits │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Per-Frame / Video Analysis  │
+│ - Aggregate metadata issues │
+│ - Assign anomaly score      │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Visualization / Reporting   │
+│ - List flagged metadata     │
+│ - Show warnings in UI       │
+│ - Export structured report  │
+└─────────────┬──────────────┘
+              │
+              ▼
+┌────────────────────────────┐
+│ Output / Score Integration  │
+│ - Combine with geometry &   │
+│   news signals              │
+│ - Contribute to overall     │
+│   authenticity score        │
+└────────────────────────────┘
+
