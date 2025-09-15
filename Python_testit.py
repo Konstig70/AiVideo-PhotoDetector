@@ -1,7 +1,8 @@
-import cv2
-import numpy as np
+import streamlit as st
 
-img = np.zeros((100,100,3), dtype=np.uint8)
-cv2.imshow('test', img)
-cv2.waitKey(1000)
-cv2.destroyAllWindows()
+st.title("Testi")
+st.markdown(
+    """ 
+    Hei maailma olen sebu
+    """
+)
