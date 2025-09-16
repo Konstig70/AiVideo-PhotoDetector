@@ -37,11 +37,15 @@ class GeometryMapper:
         #i.e frames with anomalies
         anomaly_frames = 0
         anomaly_score = 0
-        #loop through each frame 
+        # Set up necessary variables for finger analysis
         finger_angles = []
         finger_angle_averages = 0
-        finger_angle_anomaly_multiplier = 0.1
+        anomaly_multiplier = 0.1
         previous_frame_anomalous = False
+        pose_ratios = []
+        pose_ratios_averages = 0
+
+        #loop through each frame 
         while capture.isOpened():
             frame_anomaly = False
             finger_anomaly = False
@@ -69,16 +73,16 @@ class GeometryMapper:
                     finger_angle_averages = np.mean(np_angles, axis=0)
                     # Get deviaton
                     deviation = np.abs(np.array(frame_angles) - finger_angle_averages)
-                    print("deviation",deviation)
                     # If deviaton too large we call an anomaly
-                    if (np.any(deviation > 30)):
+                    std_angles = np.std(np_angles, axis=0)
+                    if (np.any(deviation > 2 * std_angles)): # 2σ rule since it adapts to baseline
                         finger_anomaly = True
                         # Check if previous frame was anomalous and grow multiplier if it was
                         if (previous_frame_anomalous):
-                            finger_angle_anomaly_multiplier += 0.2
+                            anomaly_multiplier = min(anomaly_multiplier + 0.3, 3.0)
                         previous_frame_anomalous = True
                         #Grow anomaly_score
-                        anomaly_score += 1 * finger_angle_anomaly_multiplier
+                        anomaly_score += 1 * anomaly_multiplier
                         #Log the anomaly and save frame
                         print("Finger anomaly!")
                         GeometryMapper.mp_drawing.draw_landmarks(
@@ -89,40 +93,30 @@ class GeometryMapper:
                         print("frame saved at: ", save_path)
                     else :
                         #Frame was not anomalous so multiplier zeroed
-                        finger_angle_anomaly_multiplier = 0
+                        anomaly_multiplier = 0
                         previous_frame_anomalous = False
                     
                         
             # Process the pose of the frame
+            anomaly_multiplier = 0.1
             results = pose.process(rgb)
             if results.pose_landmarks:
-                reason = ""
                 landmarks = results.pose_landmarks.landmark
 
-                # Limb ratios
-                left_upper_arm = GeometryMapper.segment_length(landmarks[11], landmarks[13])  # shoulder->elbow
-                left_lower_arm = GeometryMapper.segment_length(landmarks[13], landmarks[15])  # elbow->wrist
-                right_upper_arm = GeometryMapper.segment_length(landmarks[12], landmarks[14])  # shoulder->elbow
-                right_lower_arm = GeometryMapper.segment_length(landmarks[14], landmarks[16])  # elbow->wrist
-                # normally human limbs have a 1:1 ratio (some deviation)
-                left_arm_ratio = left_upper_arm / left_lower_arm if left_lower_arm != 0 else 0
-                right_arm_ratio = right_upper_arm / right_lower_arm if right_lower_arm != 0 else 0
-                
-                # Check that that left arm has correct ratio
-                if left_arm_ratio < 0.5 or left_arm_ratio > 1.5:
-                    pose_anomaly = True
-                    reason += " left arm ratio incorrect"
-
-                if right_arm_ratio < 0.5 or right_arm_ratio > 1.5:
-                    pose_anomaly = True
-                    reason += " right arm ratio incorrect"
-
+                # Limb ratios from current frame
+                ratios_current_frame = GeometryMapper.getLimbRatios(landmarks)
+                pose_ratios.append(ratios_current_frame)
+                np_ratios = np.array(pose_ratios)
+                pose_ratios_averages = np.mean(np_ratios, axis=0)
                 # Draw landmarks if desired
+                deviation = np.abs(np.array(ratios_current_frame) - pose_ratios_averages)
+                pose_ratios_std = np.std(np_ratios, axis=0)
+                if np.any(deviation > 3 * pose_ratios_std):
+                    print("Limb ratio anomaly too large deviation of: ", deviation)    
+
                 GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
 
-                #if pose_anomaly:
-                #    print(f"Pose anomaly in frame {total_frames} due to {reason}")
-
+                
             #Process face
             results = face_mesh.process(rgb)
             if results.multi_face_landmarks:
@@ -154,8 +148,20 @@ class GeometryMapper:
         return {
             "total_frames": total_frames,
             "anomaly_frames": anomaly_frames,
-            "anomaly_rating": anomaly_score
+            "anomaly_rating": anomaly_score / total_frames
         }
+
+    def getLimbRatios(landmarks):
+        left_upper_arm = GeometryMapper.segment_length(landmarks[11], landmarks[13])  # shoulder->elbow
+        left_lower_arm = GeometryMapper.segment_length(landmarks[13], landmarks[15])  # elbow->wrist
+        right_upper_arm = GeometryMapper.segment_length(landmarks[12], landmarks[14])  # shoulder->elbow
+        right_lower_arm = GeometryMapper.segment_length(landmarks[14], landmarks[16])  # elbow->wrist
+                
+        # normally human limbs have a 1:1 ratio (some deviation)
+        left_arm_ratio = left_upper_arm / left_lower_arm if left_lower_arm != 0 else 0
+        right_arm_ratio = right_upper_arm / right_lower_arm if right_lower_arm != 0 else 0
+        return [left_arm_ratio, right_arm_ratio]
+                
 
     def symmetry_distance(p_left, p_right):
         """Returns how far the points are from perfect horizontal symmetry"""
