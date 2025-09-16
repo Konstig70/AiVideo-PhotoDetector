@@ -7,6 +7,9 @@ With the fast development of GenAI social media platforms are now full of AI gen
 ## How?
 We use multi layered checking including geometric-, shape-, basic object detection- and metadata-analysis with some news crosschecking.
 
+## Who would use it?
+Our program is meant for both single users and enterprises. For single users it can help them get more reliable information from different medias, for enterprises our software can automate moderating of AI generated conten, if such content is not wanted.
+
 ## Roadmap
 
 ### Phase 0: Preparation (Before Day 1)
