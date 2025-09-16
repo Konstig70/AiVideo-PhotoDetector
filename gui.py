@@ -113,8 +113,8 @@ st.markdown("""
 # Professional header
 st.markdown("""
 <div class="main-header">
-    <h1>🛡️ Video Security Analysis</h1>
-    <p>Professional video content verification and threat detection platform</p>
+    <h1>🛡️ AI video detector</h1>
+    <p>Detect percentage chance of AI video</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -155,7 +155,7 @@ with col1:
 with col2:
     st.markdown("""
     <div class="info-card">
-        <h4>🚀 Quick Start</h4>
+        <h4>🚀 Quick guide</h4>
         <ol>
             <li>Upload your video file</li>
             <li>Wait for automatic analysis</li>
@@ -306,6 +306,13 @@ with col2:
 with col3:
     st.markdown("**📊 Detailed Analysis**")
 
+
+
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "MetaDataScrutiny"))
+
 from metadataanalyzer import Metadata
 
 # Initialize analyzer
@@ -323,3 +330,4 @@ metadata_score = analyzer.get_score()  # 0.0-1.0
 anomalies = analyzer.get_anomalies()
 metadata = analyzer.get_metadata()
 full_results = analyzer.get_results()
+
