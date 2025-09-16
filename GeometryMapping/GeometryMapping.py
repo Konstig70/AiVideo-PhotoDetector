@@ -2,13 +2,17 @@ import cv2
 import mediapipe as mp
 import math
 import os
+import numpy as np
 
 """"
 GeometryMapper class, responsible for geometry mapping and basic human/object-detection
 """
 class GeometryMapper:
+    #Get all needed models as shorter variables
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
+    mp_pose = mp.solutions.pose
+    mp_face_mesh = mp.solutions.face_mesh
 
     @staticmethod
     def analyze_video(video_path, display = False):
@@ -25,13 +29,24 @@ class GeometryMapper:
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5 
         )
-
+        #Initialize pose and face tracking
+        pose = GeometryMapper.mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
+        face_mesh = GeometryMapper.mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1)
         
         total_frames = 0
         #i.e frames with anomalies
         anomaly_frames = 0
+        anomaly_score = 0
         #loop through each frame 
+        finger_angles = []
+        finger_angle_averages = 0
+        finger_angle_anomaly_multiplier = 0.1
+        previous_frame_anomalous = False
         while capture.isOpened():
+            frame_anomaly = False
+            finger_anomaly = False
+            pose_anomaly = False
+            face_anomaly= False
             ret, frame = capture.read()
             if not ret:
                 break
@@ -39,29 +54,99 @@ class GeometryMapper:
 
             #Get hands and analyze
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
             results = hands.process(rgb)
             
             if results.multi_hand_landmarks:
+
                 #iterate over each spotted hand
                 for hand_landmarks in results.multi_hand_landmarks:
-                    #Get fingers
-                    finger_count = GeometryMapper.count_fingers(hand_landmarks)
-                    print(f"fingers: {finger_count} in frame {total_frames}")
-                    if finger_count != 5:  # anomaly we want only 5 fingers per hand
-                        anomaly_frames += 1
-                        frame_anomaly = True
-                    GeometryMapper.mp_drawing.draw_landmarks(
-                        frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS
-                    )
-                if display and frame_anomaly and total_frames % 20 == 0:
-                    cv2.imshow("Anomalous Frame", frame)
-                    # Press 'q' to skip/exit display early
-                    if cv2.waitKey(0) & 0xFF == ord('q'):
-                        break
-                if total_frames % 20 == 0:
-                    save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
-                    cv2.imwrite(save_path, frame)
-                    print("frame saved at: ", save_path)
+                    #Get finger angles from current frame
+                    frame_angles = GeometryMapper.finger_angles(hand_landmarks)
+                    finger_angles.append(frame_angles)
+                    np_angles = np.array(finger_angles)
+                    # Get the averages for each fingers angle
+                    finger_angle_averages = np.mean(np_angles, axis=0)
+                    # Get deviaton
+                    deviation = np.abs(np.array(frame_angles) - finger_angle_averages)
+                    print("deviation",deviation)
+                    # If deviaton too large we call an anomaly
+                    if (np.any(deviation > 30)):
+                        finger_anomaly = True
+                        # Check if previous frame was anomalous and grow multiplier if it was
+                        if (previous_frame_anomalous):
+                            finger_angle_anomaly_multiplier += 0.2
+                        previous_frame_anomalous = True
+                        #Grow anomaly_score
+                        anomaly_score += 1 * finger_angle_anomaly_multiplier
+                        #Log the anomaly and save frame
+                        print("Finger anomaly!")
+                        GeometryMapper.mp_drawing.draw_landmarks(
+                            frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS
+                        )
+                        save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
+                        cv2.imwrite(save_path, frame)
+                        print("frame saved at: ", save_path)
+                    else :
+                        #Frame was not anomalous so multiplier zeroed
+                        finger_angle_anomaly_multiplier = 0
+                        previous_frame_anomalous = False
+                    
+                        
+            # Process the pose of the frame
+            results = pose.process(rgb)
+            if results.pose_landmarks:
+                reason = ""
+                landmarks = results.pose_landmarks.landmark
+
+                # Limb ratios
+                left_upper_arm = GeometryMapper.segment_length(landmarks[11], landmarks[13])  # shoulder->elbow
+                left_lower_arm = GeometryMapper.segment_length(landmarks[13], landmarks[15])  # elbow->wrist
+                right_upper_arm = GeometryMapper.segment_length(landmarks[12], landmarks[14])  # shoulder->elbow
+                right_lower_arm = GeometryMapper.segment_length(landmarks[14], landmarks[16])  # elbow->wrist
+                # normally human limbs have a 1:1 ratio (some deviation)
+                left_arm_ratio = left_upper_arm / left_lower_arm if left_lower_arm != 0 else 0
+                right_arm_ratio = right_upper_arm / right_lower_arm if right_lower_arm != 0 else 0
+                
+                # Check that that left arm has correct ratio
+                if left_arm_ratio < 0.5 or left_arm_ratio > 1.5:
+                    pose_anomaly = True
+                    reason += " left arm ratio incorrect"
+
+                if right_arm_ratio < 0.5 or right_arm_ratio > 1.5:
+                    pose_anomaly = True
+                    reason += " right arm ratio incorrect"
+
+                # Draw landmarks if desired
+                GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
+
+                #if pose_anomaly:
+                #    print(f"Pose anomaly in frame {total_frames} due to {reason}")
+
+            #Process face
+            results = face_mesh.process(rgb)
+            if results.multi_face_landmarks:
+                reason = ""
+                # get all landmarks
+                face_landmarks = results.multi_face_landmarks[0].landmark
+                # currently we check 33 and 263 = eyes, 61 and 291 = mouth corners 159 and 386 = cheeks  
+                symmetric_pairs = [(33, 263), (61, 291), (159, 386)]
+                
+                for left_idx, right_idx in symmetric_pairs:
+                    left = face_landmarks[left_idx]
+                    right = face_landmarks[right_idx]
+                    # Get the symmetry distance low score = close, high score = far = likely synthetical 
+                    if GeometryMapper.symmetry_distance(left, right) > 0.1:
+                        #print("Face anomaly!")
+                        face_anomaly = True
+
+            # Display and save frames with anomalies
+            if display and frame_anomaly and total_frames % 20 == 0:
+                cv2.imshow("Anomalous Frame", frame)
+                # Press 'q' to skip/exit display early
+                if cv2.waitKey(0) & 0xFF == ord('q'):
+                    break
+            
             #Clean up
         capture.release()
         cv2.destroyAllWindows()
@@ -69,11 +154,23 @@ class GeometryMapper:
         return {
             "total_frames": total_frames,
             "anomaly_frames": anomaly_frames,
-            "anomaly_rating": anomaly_frames / total_frames if total_frames > 0 else 0
+            "anomaly_rating": anomaly_score
         }
 
-    @staticmethod
-    def count_fingers(hand_landmarks):
+    def symmetry_distance(p_left, p_right):
+        """Returns how far the points are from perfect horizontal symmetry"""
+        return abs(p_left.x - (1 - p_right.x))  # normalized coordinates
+
+    def segment_length(p1, p2):
+        """Distance between two normalized landmarks"""
+        return math.sqrt(
+            (p1.x - p2.x)**2 +
+            (p1.y - p2.y)**2 +
+            (p1.z - p2.z)**2
+        )
+
+
+    def finger_angles(hand_landmarks):
         # these indecies are the landmark indecies for different fingers 
         fingers = [
         [1, 2, 3, 4],   # Thumb
@@ -82,36 +179,20 @@ class GeometryMapper:
         [13, 14, 15, 16],# Ring
         [17, 18, 19, 20]# Pinky
     ]
-        finger_count = 0
+        angles_frame = []
         for f in fingers:
-            mcp = hand_landmarks.landmark[f[0]] # mcp is the lowest finger landmark
-            tip = hand_landmarks.landmark[f[3]] # tip is the highest i.e the tip of the finger
-            dist = distance(mcp, tip) 
-            if dist > 0.1:  # if the distance between these landmarks is really small, then we can be certain that the finger doesnt exist 
-                # we then calculate the angle to check that the finger is not distorted
-                # first we need the oher landmarks
-                pip = hand_landmarks.landmark[f[1]] 
-                dip = hand_landmarks.landmark[f[2]]
-                #now calculate the angles
-                angle1 = angle_between(mcp, pip, dip)
-                angle2 = angle_between(pip, dip, tip)
-                # Fingers are typically beteen angles 40-180 so if both angles are not between these values we can be certain that there is no finger, or finger is distorted 
-                if (40 <= angle1 <= 180 and 40 <= angle2 <= 180):
-                    finger_count += 1
+            mcp = hand_landmarks.landmark[f[0]]
+            pip = hand_landmarks.landmark[f[1]]
+            dip = hand_landmarks.landmark[f[2]]
+            tip = hand_landmarks.landmark[f[3]]
 
-
-        return finger_count
+            angle1 = angle_between(mcp, pip, dip)
+            angle2 = angle_between(pip, dip, tip)
+            angles_frame.extend([angle1, angle2])
+            
+        return angles_frame
 
         
-def distance(lm1, lm2):
-    """Distance between two landmarks """
-    return math.sqrt(
-        (lm1.x - lm2.x)**2 +
-        (lm1.y - lm2.y)**2 +
-        (lm1.z - lm2.z)**2
-    )
-
-
 def angle_between(p1, p2, p3):
     """Angle at p2 formed by p1-p2-p3"""
     import math
@@ -129,7 +210,7 @@ def angle_between(p1, p2, p3):
 def main():
     current_dir = os.getcwd()
     # Go one level up with ".." and then into data/shorterTest.mp4
-    file_path = os.path.join(current_dir, "..", "data", "shorterTest.mp4")
+    file_path = os.path.join(current_dir, "..", "data", "Test2.mp4")
     # Normalize the path to get an absolute path
     file_path = os.path.abspath(file_path)
 
