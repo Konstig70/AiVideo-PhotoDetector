@@ -1,4 +1,11 @@
 # AI Video and Photo Detector
+An AI video and phote detection program that is meant to help users more easily distinguish actual content from AI created ones. 
+
+## Why?
+With the fast development of GenAI social media platforms are now full of AI generated content, while AI created content is not always bad, it can be used for malicious intent (deepfakes, etc). Our program aims to provide an AI agent that can detect AI created content or check content provided by the user, while also providing easy breakdowns for analyzed content with a relaxed tone.
+
+## How?
+We use multi layered checking including geometric-, shape-, basic objectdetection- and metadata-analysis with some news crosschecking.
 
 ## Roadmap
 
