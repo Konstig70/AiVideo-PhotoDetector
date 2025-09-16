@@ -95,7 +95,7 @@ class GeometryMapper:
                 #now calculate the angles
                 angle1 = angle_between(mcp, pip, dip)
                 angle2 = angle_between(pip, dip, tip)
-                # Fingers are typically beteen angles 40-180
+                # Fingers are typically beteen angles 40-180 so if both angles are not between these values we can be certain that there is no finger, or finger is distorted 
                 if (40 <= angle1 <= 180 and 40 <= angle2 <= 180):
                     finger_count += 1
 
