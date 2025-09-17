@@ -23,6 +23,9 @@ class metadata:
         for field in required:
             if not self.metadata.get(field):
                 self.suspicion_score += 1
+
+        print(f"Metadata: {metadata}")
+        print(f"Suspicion score: {metadata.suspicion_score}")
         
         return {
             "metadata": self.metadata,

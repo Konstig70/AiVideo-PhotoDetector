@@ -206,6 +206,11 @@ if ladattuvideo is not None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
                 tmp_file.write(ladattuvideo.getvalue())
                 temp_path = tmp_file.name
+                from MetaDataScrutiny.metadataanalyzer import metadata
+
+                analyzer = metadata(temp_path)
+                
+
             
             # Progress indicator
             progress_bar = st.progress(0)
@@ -310,16 +315,4 @@ with col3:
 
 import sys
 import os
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "MetaDataScrutiny"))
-
-if ladattuvideo is not None:
-    with open("analyz_video.mp4", "wb") as f:
-        f.write(ladattuvideo.read())
-    video_path = os.path.abspath("analyz_video.mp4")
-
-from metadataanalyzer import metadata
-video_path = os.path.abspath("analyz_video.mp4")
-analyzer = metadata(video_path)
-
 
