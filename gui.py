@@ -209,6 +209,9 @@ if ladattuvideo is not None:
                 from MetaDataScrutiny.metadataanalyzer import metadata
 
                 analyzer = metadata(temp_path)
+                result = analyzer.analyze()
+
+
                 
 
             
@@ -221,9 +224,12 @@ if ladattuvideo is not None:
             
             progress_bar.progress(50)
             
+            data = result["metadata"]
+            score = result["suspicion_score"]
             # Technical details section
             st.markdown("### 📋 Technical Analysis")
-            
+            st.markdown(f"Video metadata: {data}")
+            st.markdown(f"Suspicion score: {score}")
             try:
                 import cv2
                 cap = cv2.VideoCapture(temp_path)

@@ -46,9 +46,9 @@ class GeometryMapper:
         finger_anomaly_frames = 0
 
         #Initialized variables for pose
-        pose_ratios = []
-        pose_ratios_averages = 0
-        pose_ratio_anomaly_frames = 0
+        arm_length_ratio_anomaly_frames = 0
+        shoulder_to_shoulder_width_anomaly_frames = 0
+        pose_shoulder_widths = []
 
         #Initialize variables for face
         face_distances = []
@@ -66,11 +66,11 @@ class GeometryMapper:
                 break
             total_frames += 1
 
-            #Get hands and analyze
+            
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
+            #Get hands and analyze
             results = hands.process(rgb)
-            
+            #process hands
             if results.multi_hand_landmarks:
 
                 #iterate over each spotted hand
@@ -117,14 +117,11 @@ class GeometryMapper:
 
                 # Limb ratios from current frame
                 ratios_current_frame = GeometryMapper.getLimbRatios(landmarks)
-                pose_ratios.append(ratios_current_frame)
-                np_ratios = np.array(pose_ratios)
-                pose_ratios_averages = np.mean(np_ratios, axis=0)
+                assymetry = abs(ratios_current_frame[0] - ratios_current_frame[1])
                 
-                deviation = np.abs(np.array(ratios_current_frame) - pose_ratios_averages)
-                pose_ratios_std = np.std(np_ratios, axis=0)
-                if np.any(deviation > 2 * pose_ratios_std): #2σ rule since it adapts to baseline
-                    print(f"Limb ratio anomaly detected at frame : {total_frames}!")   
+                # normally arms are symmetrical 1:1 so if assymetry is higher than 0.35 that is an anomaly
+                if assymetry > 0.35:    
+                    print(f"Arm assymetry anomaly detected at frame : {total_frames}!")   
                     #Check previous frame for anomality
                     if (previous_frame_anomalous):
                         #Grow multiplier
@@ -133,12 +130,32 @@ class GeometryMapper:
                     anomaly_score += 1 * anomaly_multiplier
                     previous_frame_anomalous = True
                     frame_anomaly = True
-                    pose_ratio_anomaly_frames += 1
+                    arm_length_ratio_anomaly_frames += 1
                 else:
                     #Frame was not anomalous so we reset multiplier 
                     anomaly_multiplier = 0.1
                     previous_frame_anomalous = False
-                # Draw landmarks if desired
+                # check shoulder to shoulder width
+                pose_shoulder_widths.append(ratios_current_frame[2])
+                np_shoulder_widths = np.array(pose_shoulder_widths)
+                np_shoulder_average = np.mean(np_shoulder_widths, axis=0)
+                deviation = np.abs(ratios_current_frame[2] - np_shoulder_average)
+                std_lengths = np.std(np_shoulder_widths, axis=0)
+                if deviation > 3 * std_lengths:
+                    print(f"shoulder to shoulder width anomaly detected at frame : {total_frames}!")   
+                    #Check previous frame for anomality
+                    if (previous_frame_anomalous):
+                        #Grow multiplier
+                        anomaly_multiplier += min(anomaly_multiplier + 0.3, 3.0)
+                    #Raise score times multiplier
+                    anomaly_score += 1 * anomaly_multiplier
+                    previous_frame_anomalous = True
+                    frame_anomaly = True
+                    shoulder_to_shoulder_width_anomaly_frames += 1
+                else:
+                    #Frame was not anomalous so we reset multiplier 
+                    anomaly_multiplier = 0.1
+                    previous_frame_anomalous = False
                 GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
 
                 
@@ -158,7 +175,7 @@ class GeometryMapper:
                     symmetry_distance = GeometryMapper.symmetry_distance(left, right) 
                     # Append distance
                     distances.append(symmetry_distance)
-                #Append this frames distances to all
+                #Append this frames distances to all frames
                 face_distances.append(distances)
                 np_faces_distances = np.array(face_distances)
                 face_distance_averages = np.mean(np_faces_distances, axis=0)
@@ -195,7 +212,8 @@ class GeometryMapper:
             "anomaly_frames": anomaly_frames,
             "anomaly_rating": anomaly_score / total_frames,
             "finger_anomaly_frames": finger_anomaly_frames,
-            "pose_ratio_anomaly_frames": pose_ratio_anomaly_frames,
+            "arm_length_ratio_anomaly_frames": arm_length_ratio_anomaly_frames,
+            "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
             "face_distance_anomaly_frames": face_distance_anomaly_frames
         }
 
@@ -204,11 +222,14 @@ class GeometryMapper:
         left_lower_arm = GeometryMapper.segment_length(landmarks[13], landmarks[15])  # elbow->wrist
         right_upper_arm = GeometryMapper.segment_length(landmarks[12], landmarks[14])  # shoulder->elbow
         right_lower_arm = GeometryMapper.segment_length(landmarks[14], landmarks[16])  # elbow->wrist
-                
+        shoulder_width = GeometryMapper.segment_length(landmarks[11], landmarks[12]) # right shoulder <-> left shoulder
+
         # normally human limbs have a 1:1 ratio (some deviation)
         left_arm_ratio = left_upper_arm / left_lower_arm if left_lower_arm != 0 else 0
         right_arm_ratio = right_upper_arm / right_lower_arm if right_lower_arm != 0 else 0
-        return [left_arm_ratio, right_arm_ratio]
+
+        
+        return [left_arm_ratio, right_arm_ratio, shoulder_width]
                 
 
     def symmetry_distance(p_left, p_right):
@@ -264,7 +285,7 @@ def angle_between(p1, p2, p3):
 def main():
     current_dir = os.getcwd()
     # Go one level up with ".." and then into data/shorterTest.mp4
-    file_path = os.path.join(current_dir, "..", "data", "Test2.mp4")
+    file_path = os.path.join(current_dir, "..", "data", "testingReal.mp4")
     # Normalize the path to get an absolute path
     file_path = os.path.abspath(file_path)
 

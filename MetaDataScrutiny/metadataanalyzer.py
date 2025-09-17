@@ -25,7 +25,7 @@ class metadata:
                 self.suspicion_score += 1
 
         print(f"Metadata: {metadata}")
-        print(f"Suspicion score: {metadata.suspicion_score}")
+        print(f"Suspicion score: {self.suspicion_score}")
         
         return {
             "metadata": self.metadata,
