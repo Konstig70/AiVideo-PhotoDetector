@@ -206,6 +206,7 @@ if ladattuvideo is not None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
                 tmp_file.write(ladattuvideo.getvalue())
                 temp_path = tmp_file.name
+                #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
                 from MetaDataScrutiny.metadataanalyzer import metadata
 
                 analyzer = metadata(temp_path)
