@@ -313,21 +313,13 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "MetaDataScrutiny"))
 
-from metadataanalyzer import Metadata
+if ladattuvideo is not None:
+    with open("analyz_video.mp4", "wb") as f:
+        f.write(ladattuvideo.read())
+    video_path = os.path.abspath("analyz_video.mp4")
 
-# Initialize analyzer
-analyzer = Metadata()
+from metadataanalyzer import metadata
+video_path = os.path.abspath("analyz_video.mp4")
+analyzer = metadata(video_path)
 
-# Analyze video
-results = analyzer.analyze(video_path="path/to/video.mp4", 
-                          file_size=12345, 
-                          filename="video.mp4")
-
-# Get the score for combining with other modules
-metadata_score = analyzer.get_score()  # 0.0-1.0
-
-# Get detailed results
-anomalies = analyzer.get_anomalies()
-metadata = analyzer.get_metadata()
-full_results = analyzer.get_results()
 
