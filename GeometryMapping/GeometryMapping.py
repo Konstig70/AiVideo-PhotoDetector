@@ -3,6 +3,7 @@ import mediapipe as mp
 import math
 import os
 import numpy as np
+import streamlit as st
 
 """"
 GeometryMapper class, responsible for geometry mapping and basic human/object-detection
@@ -15,7 +16,7 @@ class GeometryMapper:
     mp_face_mesh = mp.solutions.face_mesh
 
     @staticmethod
-    def analyze_video(video_path, display = False):
+    def analyze_video(video_path, display = False, progress_bar = None, progress = 0):
         """
         Analyze a video for hand geometry anomalies (extra fingers, melting shapes).
         Returns a dict with anomaly stats.
@@ -196,6 +197,13 @@ class GeometryMapper:
                     anomaly_multiplier = 0.1
                 if frame_anomaly:
                     anomaly_frames += 1
+
+            total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            interval = int(total_frames_count * 0.3)  # 30% of total frames
+
+            if total_frames % interval == 0:
+                progress += 10  # increment progress by 30%
+                progress_bar.progress(progress)
             # Display and save frames with anomalies
             if display and frame_anomaly and total_frames % 20 == 0:
                 cv2.imshow("Anomalous Frame", frame)
@@ -206,11 +214,23 @@ class GeometryMapper:
             #Clean up
         capture.release()
         cv2.destroyAllWindows()
+        anomaly_score = anomaly_score / total_frames
+        anomaly_justification = ""
+        if anomaly_score < 0.025:
+            anomaly_justification = "Likely real video"
+        elif 0.025 <= anomaly_score  < 0.050:
+            anomaly_justification = "Probably real video but some minor anomalies were detected"
+        elif 0.05 <= anomaly_score < 0.075:
+            anomaly_justification = "Cannot be certain most possibly a low quality or highly edited video or some synthetic tampering"
+        elif 0.075 <= anomaly_score < 0.1:
+            anomaly_justification = "Probably synthetic video, quite many anomalies"
+        elif anomaly_score >= 0.1:
+            anomaly_justification = "Highly suspicios most likely synthethic video, many anomalies detected"
 
         return {
             "total_frames": total_frames,
             "anomaly_frames": anomaly_frames,
-            "anomaly_rating": anomaly_score / total_frames,
+            "anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
             "finger_anomaly_frames": finger_anomaly_frames,
             "arm_length_ratio_anomaly_frames": arm_length_ratio_anomaly_frames,
             "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
@@ -289,7 +309,7 @@ def main():
     # Normalize the path to get an absolute path
     file_path = os.path.abspath(file_path)
 
-    result = GeometryMapper.analyze_video(file_path, False)
+    result = GeometryMapper.analyze_video(file_path, False, None)
     print(result)
 
 if __name__ == "__main__":

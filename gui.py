@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 import os
 from pathlib import Path
+import time
 
 # Page configuration - MUST be first Streamlit command
 st.set_page_config(
@@ -176,7 +177,8 @@ if ladattuvideo is not None:
         }
         
         # Professional status display
-        st.markdown("""
+        status_container = st.empty()
+        status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
             Processing your video file...
@@ -206,36 +208,54 @@ if ladattuvideo is not None:
             with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
                 tmp_file.write(ladattuvideo.getvalue())
                 temp_path = tmp_file.name
+                # Progress indicator
+                progress_bar = st.progress(0)
+                
                 #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
                 from MetaDataScrutiny.metadataanalyzer import metadata
-
+                from GeometryMapping.GeometryMapping import GeometryMapper
+                #Inform user about whats happening
+                status_container.markdown("""
+        <div class="status-success">
+            <strong>✅ File Upload Successful</strong><br>
+            Performing metadata analysis...
+        </div>
+        """, unsafe_allow_html=True)
+        
                 analyzer = metadata(temp_path)
                 result = analyzer.analyze()
-
-
+                progress_bar.progress(25)
+                #Inform user about whats happening
+                status_container.markdown("""
+        <div class="status-success">
+            <strong>✅ File Upload Successful</strong><br>
+            Performing geometrical and human anatomy anomaly detection...
+        </div>
+        """, unsafe_allow_html=True)
+        
+                geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+                progress_bar.progress(50)
+                # more analysis
+            
                 
 
             
-            # Progress indicator
-            progress_bar = st.progress(0)
-            progress_bar.progress(25)
             
             st.markdown("### 🎥 Video Preview")
             st.video(ladattuvideo)
             
-            progress_bar.progress(50)
             
-            data = result["metadata"]
-            score = result["suspicion_score"]
-            # Technical details section
-            st.markdown("### 📋 Technical Analysis")
-            st.markdown(f"Video metadata: {data}")
-            st.markdown(f"Suspicion score: {score}")
             try:
                 import cv2
                 cap = cv2.VideoCapture(temp_path)
                 progress_bar.progress(75)
-                
+                status_container.markdown("""
+        <div class="status-success">
+            <strong>✅ File Upload Successful</strong><br>
+            Fetching file information...
+        </div>
+        """, unsafe_allow_html=True)
+        
                 if cap.isOpened():
                     fps = cap.get(cv2.CAP_PROP_FPS)
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -255,14 +275,17 @@ if ladattuvideo is not None:
                         st.metric("Total Frames", f"{frame_count:,}")
                     
                     progress_bar.progress(100)
-                    
+                    time.sleep(2)
+
+                    # Remove the progress bar
+                    progress_bar.empty()
                     st.markdown("""
                     <div class="status-success">
                         <strong>✅ Analysis Complete</strong><br>
                         Video file has been successfully processed and analyzed.
                     </div>
                     """, unsafe_allow_html=True)
-                    
+                    status_container.empty()
                     cap.release()
                 else:
                     st.markdown("""
@@ -290,6 +313,21 @@ if ladattuvideo is not None:
                 # Clean up
                 if os.path.exists(temp_path):
                     os.unlink(temp_path)
+            
+
+            data = result["metadata"]
+            score = result["suspicion_score"]
+            # Technical details section
+            st.markdown("### 📋 Technical Analysis")
+            st.markdown(f"Video metadata:")
+            for k,v in data.items():
+                val = k.replace("_"," ")
+                st.markdown(f"  - {val}: {v}")
+            st.markdown(f"Suspicion score: {score}")
+            st.markdown(f"Geometrical and human anatomy detection results: ")
+            for key, value in geometry_results.items():
+                val = key.replace("_"," ")
+                st.markdown(f"  - {val}: {value}") 
                     
     except Exception as e:
         st.markdown(f"""
