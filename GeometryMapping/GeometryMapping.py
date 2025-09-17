@@ -45,7 +45,8 @@ class GeometryMapper:
         # Set up necessary variables for finger analysis
         finger_angles = []
         finger_angle_averages = 0
-        finger_anomaly_frames = 0
+        finger_angle_anomaly_frames = 0
+        finger_count_anomaly_frames = 0
 
         #Initialized variables for pose
         arm_length_ratio_anomaly_frames = 0
@@ -78,7 +79,7 @@ class GeometryMapper:
                 #iterate over each spotted hand
                 for hand_landmarks in results.multi_hand_landmarks:
                     #Get finger angles from current frame
-                    frame_angles = GeometryMapper.finger_angles(hand_landmarks)
+                    frame_angles, finger_count = GeometryMapper.finger_angles(hand_landmarks)
                     finger_angles.append(frame_angles)
                     np_angles = np.array(finger_angles)
                     # Get the averages for each fingers angle
@@ -97,11 +98,11 @@ class GeometryMapper:
                         #Grow anomaly_score
                         anomaly_score += 1 * anomaly_multiplier
                         #Log the anomaly and save frame
-                        print(f"Finger anomaly detected at frame {total_frames}!")
+                        print(f"Finger curl anomaly detected at frame {total_frames}!")
                         GeometryMapper.mp_drawing.draw_landmarks(
                             frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS
                         )
-                        finger_anomaly_frames += 1
+                        finger_angle_anomaly_frames += 1
                         """save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
                         cv2.imwrite(save_path, frame)
                         print("frame saved at: ", save_path)"""
@@ -109,7 +110,6 @@ class GeometryMapper:
                         #Frame was not anomalous so multiplier zeroed
                         anomaly_multiplier = 0
                         previous_frame_anomalous = False
-                    
                         
             # Process the pose of the frame
             anomaly_multiplier = 0.1
@@ -196,8 +196,9 @@ class GeometryMapper:
                 else:
                     previous_frame_anomalous = False
                     anomaly_multiplier = 0.1
-                if frame_anomaly:
-                    anomaly_frames += 1
+            if frame_anomaly:
+                print(f"Frame {total_frames} was anomalous")
+                anomaly_frames += 1
 
             total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
             interval = int(total_frames_count * 0.3)  # 30% of total frames
@@ -218,21 +219,21 @@ class GeometryMapper:
         anomaly_score = anomaly_score / total_frames
         anomaly_justification = ""
         if anomaly_score < 0.025:
-            anomaly_justification = "Likely real video"
+            anomaly_justification = "Likely a real video"
         elif 0.025 <= anomaly_score  < 0.050:
-            anomaly_justification = "Probably real video but some minor anomalies were detected"
+            anomaly_justification = "Probably a real video but some minor anomalies were detected"
         elif 0.05 <= anomaly_score < 0.075:
-            anomaly_justification = "Cannot be certain most possibly a low quality or highly edited video or some synthetic tampering"
+            anomaly_justification = "Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected"
         elif 0.075 <= anomaly_score < 0.1:
             anomaly_justification = "Probably synthetic video, quite many anomalies"
         elif anomaly_score >= 0.1:
-            anomaly_justification = "Highly suspicious most likely synthethic video, many anomalies detected"
+            anomaly_justification = "Highly suspicious most likely a synthethic video, many anomalies detected"
 
         return {
             "total_frames": total_frames,
             "anomaly_frames": anomaly_frames,
             "anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
-            "finger_anomaly_frames": finger_anomaly_frames,
+            "finger_anomaly_frames": finger_angle_anomaly_frames,
             "arm_length_ratio_anomaly_frames": arm_length_ratio_anomaly_frames,
             "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
             "face_distance_anomaly_frames": face_distance_anomaly_frames
@@ -267,6 +268,7 @@ class GeometryMapper:
 
 
     def finger_angles(hand_landmarks):
+        #Gets fingers angles and also count of fingers
         # these indecies are the landmark indecies for different fingers 
         fingers = [
         [1, 2, 3, 4],   # Thumb
@@ -276,17 +278,33 @@ class GeometryMapper:
         [17, 18, 19, 20]# Pinky
     ]
         angles_frame = []
+        count = 0
         for f in fingers:
+            #Get finger's landamarks
             mcp = hand_landmarks.landmark[f[0]]
             pip = hand_landmarks.landmark[f[1]]
             dip = hand_landmarks.landmark[f[2]]
             tip = hand_landmarks.landmark[f[3]]
-
+            #Get fingers length
+            length = distance(mcp, tip)
             angle1 = angle_between(mcp, pip, dip)
             angle2 = angle_between(pip, dip, tip)
             angles_frame.extend([angle1, angle2])
+
+            if 40 <= angle1 <= 180 and 40 <= angle2 <= 180 and length >= 0.05:
+                count += 1
             
-        return angles_frame
+        return angles_frame, count
+
+def distance(lm1, lm2):
+    """
+    Compute the Euclidean distance between two landmarks.
+    """
+    return math.sqrt(
+        (lm1.x - lm2.x)**2 +
+        (lm1.y - lm2.y)**2 +
+        (lm1.z - lm2.z)**2
+    )
 
         
 def angle_between(p1, p2, p3):
