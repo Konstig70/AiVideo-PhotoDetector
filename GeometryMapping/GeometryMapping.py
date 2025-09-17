@@ -4,6 +4,7 @@ import math
 import os
 import numpy as np
 import streamlit as st
+import threading
 
 """"
 GeometryMapper class, responsible for geometry mapping and basic human/object-detection
@@ -225,7 +226,7 @@ class GeometryMapper:
         elif 0.075 <= anomaly_score < 0.1:
             anomaly_justification = "Probably synthetic video, quite many anomalies"
         elif anomaly_score >= 0.1:
-            anomaly_justification = "Highly suspicios most likely synthethic video, many anomalies detected"
+            anomaly_justification = "Highly suspicious most likely synthethic video, many anomalies detected"
 
         return {
             "total_frames": total_frames,
