@@ -4,6 +4,13 @@ import os
 from pathlib import Path
 import time
 
+# Initialize session state
+if "results" not in st.session_state:
+    st.session_state.results = None
+
+if "file_path" not in st.session_state:
+    st.session_state.file_path = None
+
 # Page configuration - MUST be first Streamlit command
 st.set_page_config(
     page_title="Video Analysis Platform",
@@ -115,7 +122,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>🛡️ AI video detector</h1>
-    <p>Get reliable video authenticity scores by combining anatomy, geometry, and motion analysis, with a clear and easy to understand verdict. Optional technical breakdown is also available.</p>
+    <p>Get reliable video authenticity scores by combining anatomy, metadata, and motion analysis, with a clear and easy to understand verdict. Optional technical breakdown is also available.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -203,7 +210,7 @@ if ladattuvideo is not None:
             Performing metadata analysis...
         </div>
         """, unsafe_allow_html=True)
-                time.sleep(2)
+                time.sleep(1)
                 analyzer = metadata(temp_path)
                 result = analyzer.analyze()
                 progress_bar.progress(25)
@@ -214,10 +221,20 @@ if ladattuvideo is not None:
             Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
-        
-                geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+
+                if st.session_state.file_path == temp_path:
+                    if st.session_state.results:     
+                        geometry_results = st.session_state.results
+                    else:
+                        geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+                        st.session_state.results = geometry_results
+                else:
+                    geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+                    st.session_state.results = geometry_results
+                    st.session_state.file_path = temp_path
+                    
                 # more analysis
-                agent = VideoJustificationAgent()
+                agent = VideoJustificationAgent("")
                 response = agent.analyze({**result, **geometry_results})
 
                 
@@ -258,17 +275,14 @@ if ladattuvideo is not None:
                         st.metric("Total Frames", f"{frame_count:,}")
                     
                     progress_bar.progress(100)
-                    time.sleep(2)
-
+                    time.sleep(2) 
                     # Remove the progress bar
                     progress_bar.empty()
-                    st.markdown("""
-                    <div class="status-success">
-                        <strong>✅ Analysis Complete</strong><br>
-                        Video file has been successfully processed and analyzed.
-                    </div>
-                    """, unsafe_allow_html=True)
-                    status_container.empty()
+                    status_container.markdown("""
+        <div class="status-success">
+            <strong>✅ Analysis Complete Video file has been successfully processed and analyzed.</strong><br>
+        </div>
+        """, unsafe_allow_html=True)
                     cap.release()
                 else:
                     st.markdown("""
@@ -311,8 +325,23 @@ if ladattuvideo is not None:
                 st.markdown(f"Human anatomy anomaly detection results: ")
                 for key, value in geometry_results.items():
                     val = key.replace("_"," ")
-                    st.markdown(f"  - {val}: {value}") 
+                    st.markdown(f"  - {val}: {value}")
+            #Possible news crosscheck
+            with st.expander("### Perform news/search crosscheck"):
+                st.markdown("#### A news crosscheck can be performed to see if any news articles were published about the contents of the video. This can help to verify the authenticity of the video.")
+                st.markdown("#####  This is an experimental feature that is still in alpha phase. It uses LLM to generate search queries based on the contents of the video and then searches news articles based on those queries. Finally it summarizes the results and tells if any of the articles were relevant to the contents of the video. Please note that this feature is not always accurate and should be used with caution.")
+                if st.button("Try our experimental video context detection system by clicking here"):
+                    print("CrossCheck!")
+                st.markdown("##### You can also perform a news crosscheck by simply describing the contents of video below, this might work better than the automatic context detection, how ever keep in mind that you need to present sufficiently relatable information for the video.")
+                input = st.text_input("Please describe the videos contents:")
+                if st.button("submit"):
+                    results = agent.perform_news_cross_check(input)
+                    st.markdown("### Here is the results of the news crosscheck")
+                    st.markdown(f"#### {results}")    
                     
+                # crosscheck based on user input
+
+
     except Exception as e:
         st.markdown(f"""
         <div class="status-error">

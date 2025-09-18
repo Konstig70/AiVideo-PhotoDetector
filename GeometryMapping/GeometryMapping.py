@@ -66,6 +66,7 @@ class GeometryMapper:
         prev_gray = None
         all_motion_scores = []
 
+        total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
         #loop through each frame 
         while capture.isOpened():
@@ -229,12 +230,8 @@ class GeometryMapper:
                 
 
             #Progress bar continuation
-            total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-            interval = int(total_frames_count * 0.3)  # 30% of total frames
-
-            if total_frames % interval == 0:
-                progress += 10  # increment progress by 30%
-                progress_bar.progress(progress)
+            progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
+            progress_bar.progress(progress)
             # Display and save frames with anomalies
             if display and frame_anomaly and total_frames % 20 == 0:
                 cv2.imshow("Anomalous Frame", frame)
@@ -255,9 +252,9 @@ class GeometryMapper:
             anomaly_justification = "Probably a real video but some minor anomalies were detected"
         elif 0.05 <= anomaly_score < 0.075:
             anomaly_justification = "Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected"
-        elif 0.075 <= anomaly_score <= 0.1:
+        elif 0.075 <= anomaly_score < 0.1:
             anomaly_justification = "Probably synthetic video, quite many anomalies"
-        elif anomaly_score > 0.1:
+        elif anomaly_score >= 0.1:
             anomaly_justification = "Highly suspicious most likely a synthethic video, many anomalies detected"
 
         return {

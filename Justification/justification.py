@@ -1,5 +1,6 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
+from newsapi import NewsApiClient  # or use Google Custom Search API
 
 
 class VideoJustificationAgent:
@@ -10,6 +11,7 @@ class VideoJustificationAgent:
     4. Give justification even if the video is likely real.
     5. The anatomy_anomaly_rating score corresponds with these values Anomaly score < 0.025: Likely a real video; 0.025 ≤ Anomaly score < 0.050: Probably a real video but some minor anomalies were detected; 0.05 ≤ Anomaly score < 0.075: Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected; 0.075 ≤ Anomaly score ≤ 0.1: Probably synthetic video, quite many anomalies; Anomaly score > 0.1: Highly suspicious, most likely a synthetic video, many anomalies detected. 
     6. Be confident if the scores say likely real video you should mainly point it to be a real video (ofcourse mention that some anomalies were found but the overall analysis needs to match the results)
+    7. Even though you understand the anomaly rating keep the explanation simple so that a non tech savvy person can understand it i.e dont mention the actual score, mentioning that some amount of frames contained anomalies is ok just dont mention the anomaly score itself just reference it.
     """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
@@ -47,7 +49,72 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
+    def perform_news_cross_check(self, context):
+        queries = VideoJustificationAgent.generate_search_queries(self, context)
+        results = VideoJustificationAgent.search_news(queries, "6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601")
+        summary = VideoJustificationAgent.analyze_news_relevance(self, context, results) 
+        return summary
 
+    def analyze_news_relevance(self, video_context, articles):
+        """
+        Prompts LLM to evaluate if articles are relevant to video content
+        """
+        articles_text = "\n".join([f"- {a['title']}: {a['description']}" for a in articles])
+        prompt = f"""
+        You are an AI fact-checker.
+        Given a video's content and a list of articles, determine:
+        - Are the articles relevant to the video?
+        - Are there inconsistencies?
+        - Provide a short summary of supporting evidence.
+
+        Video context:
+        {video_context}
+        Articles:
+        {articles_text}
+
+        Answer in a concise summary.
+        """
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role":"user","content":prompt}],
+            temperature=0
+        )
+        return response.choices[0].message.content
+
+    def search_news(queries, api_key="6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601"):
+        newsapi = NewsApiClient(api_key=api_key)
+        results = []
+        for q in queries:
+            response = newsapi.get_everything(q, language='en', page_size=5)
+            for article in response.get('articles', []):
+                results.append({
+                    "title": article['title'],
+                    "description": article['description'],
+                    "url": article['url'],
+                    "publishedAt": article['publishedAt']
+                })
+        return results
+
+    def generate_search_queries(self, video_context):
+        """
+        Uses LLM to generate search queries based on extracted video content
+        """
+        prompt = f"""
+        Generate 5 concise search queries to fact-check a video.
+        Video context:
+        {video_context}
+        Only return queries as a list of strings.
+        """
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role":"user","content":prompt}],
+            temperature=0.3
+        )
+        queries = response.choices[0].message.content
+        # Parse into Python list
+        import ast
+        queries = ast.literal_eval(queries) if queries.startswith('[') else queries.split("\n")
+        return queries
 
 
 def main():
