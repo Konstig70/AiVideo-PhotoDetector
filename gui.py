@@ -115,33 +115,14 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>🛡️ AI video detector</h1>
-    <p>Detect percentage chance of AI video</p>
+    <p>Get reliable video authenticity scores by combining anatomy, geometry, and motion analysis, with a clear and easy to understand verdict. Optional technical breakdown is also available.</p>
 </div>
 """, unsafe_allow_html=True)
-
-# Sidebar with professional information
-with st.sidebar:
-    st.markdown("### 📊 Platform Features")
-    st.markdown("""
-    - **Secure Upload**: Encrypted file handling
-    - **Format Support**: MP4, MOV, AVI
-    - **Real-time Analysis**: Instant results
-    - **Detailed Reports**: Comprehensive insights
-    """)
-    
-    st.markdown("### 🔒 Security Standards")
-    st.markdown("""
-    - ISO 27001 Compliant
-    - GDPR Compliant
-    - End-to-end Encryption
-    - No data retention
-    """)
 
 # Main content area
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
     st.markdown("### 📁 Upload Video File")
     st.markdown("*Drag and drop or click to browse for suspicious video content*")
     
@@ -156,7 +137,7 @@ with col1:
 with col2:
     st.markdown("""
     <div class="info-card">
-        <h4>🚀 Quick guide</h4>
+        <h4>Quick guide</h4>
         <ol>
             <li>Upload your video file</li>
             <li>Wait for automatic analysis</li>
@@ -214,6 +195,7 @@ if ladattuvideo is not None:
                 #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
                 from MetaDataScrutiny.metadataanalyzer import metadata
                 from GeometryMapping.GeometryMapping import GeometryMapper
+                from Justification.justification import VideoJustificationAgent
                 #Inform user about whats happening
                 status_container.markdown("""
         <div class="status-success">
@@ -221,7 +203,7 @@ if ladattuvideo is not None:
             Performing metadata analysis...
         </div>
         """, unsafe_allow_html=True)
-        
+                time.sleep(2)
                 analyzer = metadata(temp_path)
                 result = analyzer.analyze()
                 progress_bar.progress(25)
@@ -234,21 +216,22 @@ if ladattuvideo is not None:
         """, unsafe_allow_html=True)
         
                 geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
-                progress_bar.progress(50)
                 # more analysis
-            
+                agent = VideoJustificationAgent()
+                response = agent.analyze({**result, **geometry_results})
+
                 
 
             
             
-            st.markdown("### 🎥 Video Preview")
+            st.markdown("### Video Preview")
             st.video(ladattuvideo)
             
             
             try:
                 import cv2
                 cap = cv2.VideoCapture(temp_path)
-                progress_bar.progress(75)
+                progress_bar.progress(90)
                 status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
@@ -313,21 +296,22 @@ if ladattuvideo is not None:
                 # Clean up
                 if os.path.exists(temp_path):
                     os.unlink(temp_path)
-            
-
+            st.markdown("## Summary for video:")
+            st.markdown(f"##### {response}")
             data = result["metadata"]
-            score = result["suspicion_score"]
+            score = result["metadata_anomaly_score"]
             # Technical details section
-            st.markdown("### 📋 Technical Analysis")
-            st.markdown(f"Video metadata:")
-            for k,v in data.items():
-                val = k.replace("_"," ")
-                st.markdown(f"  - {val}: {v}")
-            st.markdown(f"Suspicion score: {score}")
-            st.markdown(f"Geometrical and human anatomy detection results: ")
-            for key, value in geometry_results.items():
-                val = key.replace("_"," ")
-                st.markdown(f"  - {val}: {value}") 
+            with st.expander("### 📋 Technical Analysis (click to expand)"):
+                st.markdown(" #### Here is all of the data that our algorithms were able to detect. The anomaly score is our own scoring system that is calculated by combining different data values and different detected anomalies with some anomalies weigthed more than others (which can be seen below):")
+                st.markdown(f"Video metadata:")
+                for k,v in data.items():
+                    val = k.replace("_"," ")
+                    st.markdown(f"  - {val}: {v}")
+                st.markdown(f"Suspicion score: {score}")
+                st.markdown(f"Human anatomy anomaly detection results: ")
+                for key, value in geometry_results.items():
+                    val = key.replace("_"," ")
+                    st.markdown(f"  - {val}: {value}") 
                     
     except Exception as e:
         st.markdown(f"""
@@ -342,19 +326,16 @@ else:
     st.markdown("""
     <div class="info-card">
         <h4>🎯 Ready to Analyze</h4>
-        <p>Upload a video file above to begin the security analysis process. Our platform supports multiple formats and provides comprehensive threat detection.</p>
+        <p>Upload a video file above to begin the security analysis process. Our platform supports multiple formats and provides comprehensive anomaly detection.</p>
     </div>
     """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
-    st.markdown("**🔒 Secure & Confidential**")
+    st.markdown("**📊 Detailed Analysis**")
 with col2:
     st.markdown("**⚡ Fast Processing**")
-with col3:
-    st.markdown("**📊 Detailed Analysis**")
-
 
 

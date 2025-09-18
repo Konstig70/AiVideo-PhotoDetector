@@ -29,5 +29,5 @@ class metadata:
         
         return {
             "metadata": self.metadata,
-            "suspicion_score": self.suspicion_score
+            "metadata_anomaly_score": self.suspicion_score
         }

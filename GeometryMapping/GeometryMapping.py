@@ -138,7 +138,7 @@ class GeometryMapper:
                         #Grow multiplier
                         anomaly_multiplier += min(anomaly_multiplier + 0.3, 3.0)
                     #Raise score times multiplier
-                    anomaly_score += 1 * anomaly_multiplier
+                    anomaly_score += 1 * anomaly_multiplier * 0.7
                     previous_frame_anomalous = True
                     frame_anomaly = True
                     arm_length_ratio_anomaly_frames += 1
@@ -196,8 +196,8 @@ class GeometryMapper:
                 if np.any(deviation > 2 * distances_std): #once again same heuristic
                     if (previous_frame_anomalous):
                         anomaly_multiplier += min(anomaly_multiplier + 0.3, 3.0)
-                    #Raise score times multiplier
-                    anomaly_score += 1 * anomaly_multiplier
+                    #Raise score times multiplier, also face anomalies are weighted less than finger anomalies so we increment the score less
+                    anomaly_score += 1 * anomaly_multiplier * 0.7
                     previous_frame_anomalous = True
                     frame_anomaly = True
                     face_distance_anomaly_frames += 1
@@ -255,78 +255,21 @@ class GeometryMapper:
             anomaly_justification = "Probably a real video but some minor anomalies were detected"
         elif 0.05 <= anomaly_score < 0.075:
             anomaly_justification = "Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected"
-        elif 0.075 <= anomaly_score < 0.1:
+        elif 0.075 <= anomaly_score <= 0.1:
             anomaly_justification = "Probably synthetic video, quite many anomalies"
-        elif anomaly_score >= 0.1:
+        elif anomaly_score > 0.1:
             anomaly_justification = "Highly suspicious most likely a synthethic video, many anomalies detected"
 
         return {
             "total_frames": total_frames,
             "anomaly_frames": anomaly_frames,
-            "anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
+            "anatomy_anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
             "finger_anomaly_frames": finger_angle_anomaly_frames,
             "arm_length_ratio_anomaly_frames ": arm_length_ratio_anomaly_frames,
             "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
             "face_distance_anomaly_frames": face_distance_anomaly_frames,
             "motion_score": avg_motion
         }
-
-    def analyze_geometrical_anomalies(frame, feature_buffer=None, min_area=500, buffer_size=5, anomaly_threshold=2.5):
-        """
-        Analyze a frame for geometrical anomalies using contours and temporal feature comparison.
-        Returns (frame_anomaly, contour_features, updated_buffer)
-        """
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150)
-
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        contour_features = []
-
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < min_area:
-                continue
-
-            perimeter = cv2.arcLength(cnt, True)
-            approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)
-
-            x, y, w, h = cv2.boundingRect(cnt)
-            aspect_ratio = float(w) / h if h > 0 else 0
-            solidity = area / float(cv2.contourArea(cv2.convexHull(cnt))) if cv2.contourArea(cv2.convexHull(cnt)) > 0 else 0
-
-            contour_features.append((area, aspect_ratio, solidity, len(approx)))
-
-        # Initialize buffer if needed
-        if feature_buffer is None:
-            feature_buffer = deque(maxlen=buffer_size)
-
-        frame_anomaly = False
-
-        # Compare with temporal average if buffer has enough data
-        if len(feature_buffer) > 0 and len(contour_features) > 0:
-            buffer_array = np.array([f for frame in feature_buffer for f in frame])
-            curr_array = np.array(contour_features)
-
-            # Compute mean and std for each feature
-            buffer_mean = np.mean(buffer_array, axis=0)
-            buffer_std = np.std(buffer_array, axis=0) + 1e-5  # avoid division by zero
-
-            curr_mean = np.mean(curr_array, axis=0)
-
-            # Anomaly score: normalized deviation
-            score = np.sum(np.abs(curr_mean - buffer_mean) / buffer_std)
-
-            if score > anomaly_threshold:
-                frame_anomaly = True
-
-        # Update buffer
-        feature_buffer.append(contour_features)
-
-        return frame_anomaly, contour_features, feature_buffer
-
 
     def getLimbRatios(landmarks):
         left_upper_arm = GeometryMapper.segment_length(landmarks[11], landmarks[13])  # shoulder->elbow

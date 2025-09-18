@@ -8,6 +8,8 @@ class VideoJustificationAgent:
     2. Metadata inconsistencies (e.g., impossible timestamps or missings in metadata) increase suspicion.
     3. Motion anomalies (e.g., jitter, unnatural physics) are strong indicators.
     4. Give justification even if the video is likely real.
+    5. The anatomy_anomaly_rating score corresponds with these values Anomaly score < 0.025: Likely a real video; 0.025 ≤ Anomaly score < 0.050: Probably a real video but some minor anomalies were detected; 0.05 ≤ Anomaly score < 0.075: Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected; 0.075 ≤ Anomaly score ≤ 0.1: Probably synthetic video, quite many anomalies; Anomaly score > 0.1: Highly suspicious, most likely a synthetic video, many anomalies detected. 
+    6. Be confident if the scores say likely real video you should mainly point it to be a real video (ofcourse mention that some anomalies were found but the overall analysis needs to match the results)
     """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
@@ -20,7 +22,8 @@ class VideoJustificationAgent:
         return f"""
 You are a professional synthetic video analyst.
 Your job is to review the following video data and provide a human-like justification
-about whether the video is synthetic or not.
+about whether the video is synthetic or not. Focus on generalization a non tech savvy person needs to understand the justification, without needing to understand our scores in depth (ofcourse you can mention that score is a factor).
+Make the justification max 6 senteces
 
 Guidelines to consider:
 {self.GUIDELINES}
