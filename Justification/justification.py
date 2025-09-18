@@ -1,6 +1,5 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
-from openai.agents import create_openai_functions_agent
 
 
 class VideoJustificationAgent:
@@ -11,17 +10,13 @@ class VideoJustificationAgent:
     4. Give justification even if the video is likely real.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4"):
-        """Initialisoi OpenAI-agentti annetulla API-avaimella."""
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         self.client = OpenAI(api_key=api_key)
-        self.agent = create_openai_functions_agent(
-            client=self.client,
-            model=model,
-            description="Analyzes video data and provides synthetic video justification",
-        )
+        self.model = model
+
 
     def _make_prompt(self, video_data: dict) -> str:
-        """Luo promptin annetulle video datalle."""
+        """Create justification based on video_results"""
         return f"""
 You are a professional synthetic video analyst.
 Your job is to review the following video data and provide a human-like justification
@@ -38,24 +33,47 @@ led to your conclusion.
 """
 
     def analyze(self, video_data: dict) -> str:
-        """Suorittaa analyysin annetusta videodatasta ja palauttaa perustelun."""
+        """Create prompt and return it"""
         prompt = self._make_prompt(video_data)
-        response = self.agent.run(input=prompt)
-        return response
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are professional AIvideo data analyst."},
+                {"role": "user", "content": prompt},
+            ]
+        )
+        return response.choices[0].message.content
 
+
+
+
+def main():
+
+    video_data = {
+"""
+device info: https://clipchamp.com/
+timestamps: 2025-09-18 12:38:13.731 UTC
+resolution: 1920x1080
+codec: avc1
+Suspicion score: 0
+
+Geometrical and human anatomy detection results:
+
+total frames: 223
+anomaly frames: 211
+anomaly rating: 0.286 which equates to : Highly suspicious most likely a synthethic video, many anomalies detected
+finger anomaly frames: 104
+arm length ratio anomaly frames : 199
+shoulder to shoulder width anomaly frames: 7
+face distance anomaly frames: 44
+motion score: 1.0949195623397827
+"""
+}
+
+    asked_key = input("Tell your API KEY: ")
+    agent = VideoJustificationAgent(api_key=asked_key)
+    justification = agent.analyze(video_data)
+    print("AI detector agent justification:\n", justification)
 
 if __name__ == "__main__":
-    asked_key = input("Give your OpenAI API key: ")
-    agent = VideoJustificationAgent(api_key=asked_key)
-
-    video_data_example = {
-        "geometry_anomalies": ["asymmetric eyes", "misaligned limbs"],
-        "motion_anomalies": ["head jitter", "inconsistent walking pattern"],
-        "metadata": {
-            "creation_tool": "unknown",
-            "timestamps": ["2025-01-01T12:00", "invalid"],
-        },
-    }
-
-    justification = agent.analyze(video_data_example)
-    print("AI detector agent justification:\n", justification)
+    main()
