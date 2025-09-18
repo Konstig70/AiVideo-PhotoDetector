@@ -229,7 +229,7 @@ if ladattuvideo is not None:
                 status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
-            Performing geometrical and human anatomy anomaly detection...
+            Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
         
