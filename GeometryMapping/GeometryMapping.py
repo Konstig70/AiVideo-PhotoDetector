@@ -4,7 +4,14 @@ import math
 import os
 import numpy as np
 import streamlit as st
-import threading
+from queue import Queue
+from threading import Thread
+
+
+motion_queue = Queue()
+motion_scores = []
+prev_gray_motion = None
+
 total_frames = 0
 # Set up anomaly related variables
 anomaly_frames = 0
@@ -37,6 +44,14 @@ class GeometryMapper:
         Returns a dict with anomaly stats.
         """
         global total_frames
+        global anomaly_frames
+        global anomaly_score
+        global anomaly_multiplier
+        global finger_angle_anomaly_frames
+        global face_distance_anomaly_frames
+        global arm_length_ratio_anomaly_frames
+        global shoulder_to_shoulder_width_anomaly_frames
+        
         # Open video file from path
         capture = cv2.VideoCapture(video_path)
         # initialize hand tracking model
@@ -61,21 +76,29 @@ class GeometryMapper:
         face_distances = []
         
 
-        #Initialize motion score variables, since we need to track the motion of the video, more motion = more anomalies even for real videos
-        prev_gray = None
-        all_motion_scores = []
-
         total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        
+
+        #Reset all values        
         total_frames = 0
+        anomaly_frames = 0
+        anomaly_score = 0
+        anomaly_multiplier = 0.1
+        finger_angle_anomaly_frames = 0    
+        face_distance_anomaly_frames = 0
+        arm_length_ratio_anomaly_frames = 0
+        shoulder_to_shoulder_width_anomaly_frames = 0
+
+
         if progress_bar is not None:
             progress_bar.progress(progress)  # Initial progress
+        
+        motion_thread = Thread(target=GeometryMapper.motion_worker)
+        motion_thread.start()
+
+        
         #loop through each frame 
         while capture.isOpened():
             global frame_anomaly
-            global anomaly_frames
-            global anomaly_multiplier
-            global anomaly_score
             frame_anomaly = False
             ret, frame = capture.read()
             if not ret:
@@ -91,29 +114,16 @@ class GeometryMapper:
             anomaly_multiplier = 0.1    
             #Process face
             GeometryMapper.process_face(rgb, face_mesh, face_distances)
+            print("Anomaly score so far: ", anomaly_score)
 
             if frame_anomaly:
-                print(f"Frame {total_frames} was anomalous")
+                # print(f"Frame {total_frames} was anomalous")
                 anomaly_frames += 1
-
             #Calculate motion for frames
-            scale = 0.5
-            
-            # Convert frame to gray and resize
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            small_gray = cv2.resize(gray, (0,0), fx=scale, fy=scale)
-            if prev_gray is None:
-                prev_gray = small_gray
-            else:
-                flow = cv2.calcOpticalFlowFarneback(prev_gray, small_gray, None,
-                                                pyr_scale=0.5, levels=3, winsize=15,
-                                                iterations=3, poly_n=5, poly_sigma=1.2, flags=0)
-                magnitude, _ = cv2.cartToPolar(flow[...,0], flow[...,1])
-                motion_score = np.mean(magnitude)
-                prev_gray = small_gray
-                all_motion_scores.append(motion_score)
-                
-
+            if total_frames % 5 == 0:  # Process every 5th frame for motion to reduce load
+                print("Calculating motion for frame:", total_frames)
+                motion_queue.put((total_frames, frame.copy()))
+           
             #Progress bar continuation
             progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
             progress = min(100, max(0, progress))
@@ -128,7 +138,7 @@ class GeometryMapper:
         #Clean up
         capture.release()
         cv2.destroyAllWindows()
-        avg_motion = np.mean(all_motion_scores)
+        avg_motion = np.mean(motion_scores)
         anomaly_score = anomaly_score / total_frames 
         anomaly_score = anomaly_score - (avg_motion / 100)
         anomaly_justification = ""
@@ -153,13 +163,40 @@ class GeometryMapper:
             "face_distance_anomaly_frames": face_distance_anomaly_frames,
             "motion_score": avg_motion
         }
+    
+    def motion_worker():
+        global prev_gray_motion
+        while True:
+            item = motion_queue.get()
+            if item is None:  # sentinel to stop
+                break
+            frame_id, frame = item
+            prev_gray_motion, motion_score = GeometryMapper.calculate_motion(frame, prev_gray_motion)
+            motion_scores.append((frame_id, motion_score))
+            motion_queue.task_done()
+
+    def calculate_motion(frame, prev_gray):
+        scale = 0.5
+        # Convert frame to gray and resize
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        small_gray = cv2.resize(gray, (0,0), fx=scale, fy=scale)
+        if prev_gray is None:
+            prev_gray = small_gray
+            return prev_gray, 0
+        else:
+            flow = cv2.calcOpticalFlowFarneback(prev_gray, small_gray, None,
+                                                pyr_scale=0.5, levels=3, winsize=15,
+                                                iterations=3, poly_n=5, poly_sigma=1.2, flags=0)
+            magnitude, _ = cv2.cartToPolar(flow[...,0], flow[...,1])
+            motion_score = np.mean(magnitude)
+            prev_gray = small_gray
+            return prev_gray, motion_score
 
     def process_face(rgb, face_mesh, face_distances):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
         global frame_anomaly
-        global anomaly_frames
         global face_distance_anomaly_frames
         results = face_mesh.process(rgb)
         if results.multi_face_landmarks:
@@ -204,7 +241,6 @@ class GeometryMapper:
         global anomaly_multiplier
         global anomaly_score
         global frame_anomaly
-        global anomaly_frames
         global arm_length_ratio_anomaly_frames
         global shoulder_to_shoulder_width_anomaly_frames
         results = pose.process(rgb)
@@ -261,7 +297,6 @@ class GeometryMapper:
         global anomaly_multiplier
         global anomaly_score
         global frame_anomaly
-        global anomaly_frames
         global finger_angle_anomaly_frames
         results = hands.process(rgb)
             #process hands

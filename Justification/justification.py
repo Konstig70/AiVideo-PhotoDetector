@@ -69,7 +69,12 @@ led to your conclusion.
         - Are the results relevant to the video?
         - Are there inconsistencies?
         - Provide a short summary of supporting evidence.
-
+        - You are an expert in evaluating the credibility of information. 
+        - You can ignore articles that are not relevant to the video context.
+        - Focus on if the evidence or lack there of raises concerns for the videos authenticy or lowers them.
+        - Plese write answer as if it where a scientific report. So dont use we or I in the answer. for example use words like "Infromation was found regariding x" etc.
+        - Have the summary be concise and to the point. max 6 sentences.
+        
         Video context:
         {video_context}
         Search query results:
@@ -84,7 +89,7 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
-    def search_news(self, queries, api_key="a0e7d8ff1c654e2bbf357c2b1576ad9b"):
+    def search_news(self, queries, api_key=""):
         newsapi = NewsApiClient(api_key=api_key)
         results = []
         for q in queries:
