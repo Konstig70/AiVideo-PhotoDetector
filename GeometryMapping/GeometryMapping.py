@@ -90,7 +90,7 @@ class GeometryMapper:
             GeometryMapper.process_pose(rgb,frame,pose, pose_shoulder_widths)
             anomaly_multiplier = 0.1    
             #Process face
-            GeometryMapper.process_face(rgb, face_mesh, face_distances, face_distance_anomaly_frames)
+            GeometryMapper.process_face(rgb, face_mesh, face_distances)
 
             if frame_anomaly:
                 print(f"Frame {total_frames} was anomalous")

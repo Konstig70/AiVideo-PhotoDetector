@@ -221,18 +221,20 @@ if ladattuvideo is not None:
             Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
-                print(temp_path)
-                if st.session_state.file_path == temp_path:
+                print(ladattuvideo.name)
+                print(st.session_state.file_path)
+                if st.session_state.file_path == ladattuvideo.name:
                     if st.session_state.results:     
                         geometry_results = st.session_state.results
+                        st.session_state.file_path = ladattuvideo.name
                     else:
                         geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                         st.session_state.results = geometry_results
-                        st.session_state.file_path = temp_path
+                        st.session_state.file_path = ladattuvideo.name
                 else:
                     geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                     st.session_state.results = geometry_results
-                    st.session_state.file_path = temp_path
+                    st.session_state.file_path = ladattuvideo.name
                     
                 # more analysis
                 agent = VideoJustificationAgent("")

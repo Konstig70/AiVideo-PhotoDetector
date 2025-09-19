@@ -2,7 +2,7 @@
 from openai import OpenAI
 from newsapi import NewsApiClient  # or use Google Custom Search API
 import os
-from dotenv import load_dotenv
+from serpapi import GoogleSearch
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -53,7 +53,7 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries)
+        results = self.search_news(queries, "a0e7d8ff1c654e2bbf357c2b1576ad9b")
         summary = self.analyze_news_relevance(context, results) 
         return summary
 
@@ -62,16 +62,17 @@ led to your conclusion.
         Prompts LLM to evaluate if articles are relevant to video content
         """
         articles_text = "\n".join([f"- {a['title']}: {a['description']}" for a in articles])
+        print(articles_text)
         prompt = f"""
         You are an AI fact-checker.
-        Given a video's content and a list of articles, determine:
-        - Are the articles relevant to the video?
+        Given a video's content and a list of search queries results based on videos content, determine:
+        - Are the results relevant to the video?
         - Are there inconsistencies?
         - Provide a short summary of supporting evidence.
 
         Video context:
         {video_context}
-        Articles:
+        Search query results:
         {articles_text}
 
         Answer in a concise summary.
@@ -83,11 +84,12 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
-    def search_news(queries, api_key="a0e7d8ff1c654e2bbf357c2b1576ad9b"):
+    def search_news(self, queries, api_key="a0e7d8ff1c654e2bbf357c2b1576ad9b"):
         newsapi = NewsApiClient(api_key=api_key)
         results = []
         for q in queries:
             response = newsapi.get_everything(q, language='en', page_size=5)
+            print("News API response", response)
             for article in response.get('articles', []):
                 results.append({
                     "title": article['title'],
@@ -95,6 +97,20 @@ led to your conclusion.
                     "url": article['url'],
                     "publishedAt": article['publishedAt']
                 })
+            response = GoogleSearch({
+                "q": q,
+                "google_domain": "google.com",
+                "api_key": ""
+            }).get_dict()
+            for article in response.get('organic_results', []):
+                results.append({
+                    "title": article.get('title'),
+                    "description": article.get('snippet'),
+                    "url": article.get('link'),
+                    "source": article.get('source'),
+                    "publishedAt": article.get('date')
+                })
+        print("News articles found:", results)
         return results
 
     def generate_search_queries(self, video_context):
@@ -105,7 +121,7 @@ led to your conclusion.
         Generate 5 concise search queries to fact-check a video.
         Video context:
         {video_context}
-        Only return queries as a list of strings.
+        Only return queries as a list of strings dont number them.
         """
         response = self.client.chat.completions.create(
             model="gpt-4",
@@ -113,9 +129,11 @@ led to your conclusion.
             temperature=0.3
         )
         queries = response.choices[0].message.content
+
         # Parse into Python list
         import ast
         queries = ast.literal_eval(queries) if queries.startswith('[') else queries.split("\n")
+        print("Generated queries:", queries)
         return queries
 
 
@@ -144,8 +162,8 @@ motion score: 1.0949195623397827
 
     asked_key = input("Tell your API KEY: ")
     agent = VideoJustificationAgent(api_key=asked_key)
-    justification = agent.analyze(video_data)
-    print("AI detector agent justification:\n", justification)
+    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"], "a0e7d8ff1c654e2bbf357c2b1576ad9b"))
+    
 
 if __name__ == "__main__":
     main()
