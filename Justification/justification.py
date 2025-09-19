@@ -1,7 +1,8 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
 from newsapi import NewsApiClient  # or use Google Custom Search API
-
+import os
+from serpapi import GoogleSearch
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -51,9 +52,9 @@ led to your conclusion.
         return response.choices[0].message.content
 
     def perform_news_cross_check(self, context):
-        queries = VideoJustificationAgent.generate_search_queries(self, context)
-        results = VideoJustificationAgent.search_news(queries, "6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601")
-        summary = VideoJustificationAgent.analyze_news_relevance(self, context, results) 
+        queries = self.generate_search_queries(context)
+        results = self.search_news(queries, "")
+        summary = self.analyze_news_relevance(context, results) 
         return summary
 
     def analyze_news_relevance(self, video_context, articles):
@@ -61,16 +62,17 @@ led to your conclusion.
         Prompts LLM to evaluate if articles are relevant to video content
         """
         articles_text = "\n".join([f"- {a['title']}: {a['description']}" for a in articles])
+        print(articles_text)
         prompt = f"""
         You are an AI fact-checker.
-        Given a video's content and a list of articles, determine:
-        - Are the articles relevant to the video?
+        Given a video's content and a list of search queries results based on videos content, determine:
+        - Are the results relevant to the video?
         - Are there inconsistencies?
         - Provide a short summary of supporting evidence.
 
         Video context:
         {video_context}
-        Articles:
+        Search query results:
         {articles_text}
 
         Answer in a concise summary.
@@ -82,11 +84,12 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
-    def search_news(queries, api_key="6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601"):
+    def search_news(self, queries, api_key=""):
         newsapi = NewsApiClient(api_key=api_key)
         results = []
         for q in queries:
             response = newsapi.get_everything(q, language='en', page_size=5)
+            print("News API response", response)
             for article in response.get('articles', []):
                 results.append({
                     "title": article['title'],
@@ -94,6 +97,20 @@ led to your conclusion.
                     "url": article['url'],
                     "publishedAt": article['publishedAt']
                 })
+            response = GoogleSearch({
+                "q": q,
+                "google_domain": "google.com",
+                "api_key": ""
+            }).get_dict()
+            for article in response.get('organic_results', []):
+                results.append({
+                    "title": article.get('title'),
+                    "description": article.get('snippet'),
+                    "url": article.get('link'),
+                    "source": article.get('source'),
+                    "publishedAt": article.get('date')
+                })
+        print("News articles found:", results)
         return results
 
     def generate_search_queries(self, video_context):
@@ -104,7 +121,7 @@ led to your conclusion.
         Generate 5 concise search queries to fact-check a video.
         Video context:
         {video_context}
-        Only return queries as a list of strings.
+        Only return queries as a list of strings dont number them.
         """
         response = self.client.chat.completions.create(
             model="gpt-4",
@@ -112,10 +129,43 @@ led to your conclusion.
             temperature=0.3
         )
         queries = response.choices[0].message.content
+
         # Parse into Python list
         import ast
         queries = ast.literal_eval(queries) if queries.startswith('[') else queries.split("\n")
+        print("Generated queries:", queries)
         return queries
+    
+
+from io import BytesIO
+from reportlab.pdfgen import canvas
+
+class PDFGenerator:
+    def __init__(self, data, geometry_results, score):
+        self.data = data
+        self.geometry_results = geometry_results
+        self.score = score
+
+    def generate_pdf(self):
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer)
+        c.drawString(50, 800, f"Suspicion score: {self.score}")
+        y = 780
+        c.drawString(50, y, "Data:")
+        y -= 20
+        for k, v in self.data.items():
+            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
+            y -= 20
+        y -= 10
+        c.drawString(50, y, "Human anatomy anomaly detection results:")
+        y -= 20
+        for k, v in self.geometry_results.items():
+            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
+            y -= 20
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer
 
 
 def main():
@@ -143,8 +193,8 @@ motion score: 1.0949195623397827
 
     asked_key = input("Tell your API KEY: ")
     agent = VideoJustificationAgent(api_key=asked_key)
-    justification = agent.analyze(video_data)
-    print("AI detector agent justification:\n", justification)
+    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"], "a0e7d8ff1c654e2bbf357c2b1576ad9b"))
+    
 
 if __name__ == "__main__":
     main()

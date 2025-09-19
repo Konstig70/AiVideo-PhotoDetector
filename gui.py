@@ -203,6 +203,7 @@ if ladattuvideo is not None:
                 from MetaDataScrutiny.metadataanalyzer import metadata
                 from GeometryMapping.GeometryMapping import GeometryMapper
                 from Justification.justification import VideoJustificationAgent
+                from Justification.justification import PDFGenerator
                 #Inform user about whats happening
                 status_container.markdown("""
         <div class="status-success">
@@ -221,21 +222,23 @@ if ladattuvideo is not None:
             Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
-
-                if st.session_state.file_path == temp_path:
+                print(ladattuvideo.name)
+                print(st.session_state.file_path)
+                if st.session_state.file_path == ladattuvideo.name:
                     if st.session_state.results:     
                         geometry_results = st.session_state.results
+                        st.session_state.file_path = ladattuvideo.name
                     else:
                         geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                         st.session_state.results = geometry_results
-                        st.session_state.file_path = temp_path
+                        st.session_state.file_path = ladattuvideo.name
                 else:
                     geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                     st.session_state.results = geometry_results
-                    st.session_state.file_path = temp_path
+                    st.session_state.file_path = ladattuvideo.name
                     
                 # more analysis
-                agent = VideoJustificationAgent("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")
+                agent = VideoJustificationAgent("")
                 response = agent.analyze({**result, **geometry_results})
 
                 
@@ -339,8 +342,19 @@ if ladattuvideo is not None:
                     results = agent.perform_news_cross_check(input)
                     st.markdown("### Here is the results of the news crosscheck")
                     st.markdown(f"#### {results}")    
-                    
-                # crosscheck based on user input
+            #Authenticity report
+            
+            with st.expander("### Download authenticity report"):
+                st.markdown("#### Authenticity report is created by using the data created from analysis")
+                if st.button("Download PDF report from your video"):
+                    pdf_creator = PDFGenerator(data, geometry_results, score)
+                    pdf_file = pdf_creator.generate_pdf()
+                    st.download_button(
+                        label="Download report PDF",
+                        data=pdf_file,
+                        file_name="AuthenticityReport.pdf",
+                        mime="application/pdf"
+                    )
 
 
     except Exception as e:

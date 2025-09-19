@@ -1,2 +1,6 @@
-testingReal.mp4
-testingReal2.mp4
+__pycache__/
+<<<<<<< HEAD
+*.pyc
+=======
+*.pyc
+>>>>>>> 5057d93 (Remove __pycache__ files and update .gitignore)
