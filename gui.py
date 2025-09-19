@@ -221,7 +221,7 @@ if ladattuvideo is not None:
             Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
-
+                print(temp_path)
                 if st.session_state.file_path == temp_path:
                     if st.session_state.results:     
                         geometry_results = st.session_state.results
@@ -235,7 +235,7 @@ if ladattuvideo is not None:
                     st.session_state.file_path = temp_path
                     
                 # more analysis
-                agent = VideoJustificationAgent("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")
+                agent = VideoJustificationAgent("")
                 response = agent.analyze({**result, **geometry_results})
 
                 

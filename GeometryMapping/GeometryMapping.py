@@ -87,7 +87,7 @@ class GeometryMapper:
             GeometryMapper.process_hands(rgb, hands, finger_angles)        
             # Process the pose of the frame
             anomaly_multiplier = 0.1
-            GeometryMapper.process_pose(rgb,frame,pose, arm_length_ratio_anomaly_frames, shoulder_to_shoulder_width_anomaly_frames, pose_shoulder_widths)
+            GeometryMapper.process_pose(rgb,frame,pose, pose_shoulder_widths)
             anomaly_multiplier = 0.1    
             #Process face
             GeometryMapper.process_face(rgb, face_mesh, face_distances, face_distance_anomaly_frames)
@@ -154,12 +154,13 @@ class GeometryMapper:
             "motion_score": avg_motion
         }
 
-    def process_face(rgb, face_mesh, face_distances, face_distance_anomaly_frames):
+    def process_face(rgb, face_mesh, face_distances):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
         global frame_anomaly
         global anomaly_frames
+        global face_distance_anomaly_frames
         results = face_mesh.process(rgb)
         if results.multi_face_landmarks:
                 # get all landmarks
@@ -198,12 +199,14 @@ class GeometryMapper:
                     anomaly_multiplier = 0.1
 
 
-    def process_pose(rgb, frame,pose, arm_length_ratio_anomaly_frames, shoulder_to_shoulder_width_anomaly_frames, pose_shoulder_widths):
+    def process_pose(rgb, frame,pose, pose_shoulder_widths):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
         global frame_anomaly
         global anomaly_frames
+        global arm_length_ratio_anomaly_frames
+        global shoulder_to_shoulder_width_anomaly_frames
         results = pose.process(rgb)
         if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
