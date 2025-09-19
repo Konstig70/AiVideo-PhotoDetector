@@ -213,7 +213,7 @@ if ladattuvideo is not None:
                 time.sleep(1)
                 analyzer = metadata(temp_path)
                 result = analyzer.analyze()
-                progress_bar.progress(25)
+                progress_bar.progress(20)
                 #Inform user about whats happening
                 status_container.markdown("""
         <div class="status-success">
@@ -228,13 +228,14 @@ if ladattuvideo is not None:
                     else:
                         geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                         st.session_state.results = geometry_results
+                        st.session_state.file_path = temp_path
                 else:
                     geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                     st.session_state.results = geometry_results
                     st.session_state.file_path = temp_path
                     
                 # more analysis
-                agent = VideoJustificationAgent("")
+                agent = VideoJustificationAgent("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")
                 response = agent.analyze({**result, **geometry_results})
 
                 

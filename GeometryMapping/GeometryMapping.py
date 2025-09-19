@@ -4,17 +4,31 @@ import math
 import os
 import numpy as np
 import streamlit as st
-from concurrent.futures import ProcessPoolExecutor
-
+import threading
+total_frames = 0
+# Set up anomaly related variables
+anomaly_frames = 0
+anomaly_score = 0
+anomaly_multiplier = 0.1
+previous_frame_anomalous = False
+frame_anomaly = False
+finger_angle_anomaly_frames = 0    
+face_distance_anomaly_frames = 0
+arm_length_ratio_anomaly_frames = 0
+shoulder_to_shoulder_width_anomaly_frames = 0
+        
 """"
 GeometryMapper class, responsible for geometry mapping and basic human/object-detection
 """
 class GeometryMapper:
+
+
     #Get all needed models as shorter variables
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
     mp_pose = mp.solutions.pose
     mp_face_mesh = mp.solutions.face_mesh
+        
 
     @staticmethod
     def analyze_video(video_path, display = False, progress_bar = None, progress = 0):
@@ -22,6 +36,7 @@ class GeometryMapper:
         Analyze a video for hand geometry anomalies (extra fingers, melting shapes).
         Returns a dict with anomaly stats.
         """
+        global total_frames
         # Open video file from path
         capture = cv2.VideoCapture(video_path)
         # initialize hand tracking model
@@ -35,96 +50,162 @@ class GeometryMapper:
         pose = GeometryMapper.mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5)
         face_mesh = GeometryMapper.mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1)
         
-        total_frames = 0
-        #Set up anomaly related variables
-        anomaly_frames = 0
-        anomaly_score = 0
-        anomaly_multiplier = 0.1
-        previous_frame_anomalous = False
         
         # Set up necessary variables for finger analysis
         finger_angles = []
-        finger_angle_averages = 0
-        finger_angle_anomaly_frames = 0
-        finger_count_anomaly_frames = 0
 
         #Initialized variables for pose
-        arm_length_ratio_anomaly_frames = 0
-        shoulder_to_shoulder_width_anomaly_frames = 0
         pose_shoulder_widths = []
 
         #Initialize variables for face
         face_distances = []
-        face_distance_averages = 0
-        face_distance_anomaly_frames = 0
-
-        #Initialize previous contours for geometric analysis
-        prev_contours = []
-        total_geometrical_anomalies = 0
+        
 
         #Initialize motion score variables, since we need to track the motion of the video, more motion = more anomalies even for real videos
         prev_gray = None
         all_motion_scores = []
 
         total_frames_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-
+        
+        total_frames = 0
+        if progress_bar is not None:
+            progress_bar.progress(progress)  # Initial progress
         #loop through each frame 
         while capture.isOpened():
+            global frame_anomaly
+            global anomaly_frames
+            global anomaly_multiplier
+            global anomaly_score
             frame_anomaly = False
-            finger_anomaly = False
-            pose_anomaly = False
-            face_anomaly= False
             ret, frame = capture.read()
             if not ret:
                 break
             total_frames += 1
-
             
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             #Get hands and analyze
-            results = hands.process(rgb)
-            #process hands
-            if results.multi_hand_landmarks:
-
-                #iterate over each spotted hand
-                for hand_landmarks in results.multi_hand_landmarks:
-                    #Get finger angles from current frame
-                    frame_angles, finger_count = GeometryMapper.finger_angles(hand_landmarks)
-                    finger_angles.append(frame_angles)
-                    np_angles = np.array(finger_angles)
-                    # Get the averages for each fingers angle
-                    finger_angle_averages = np.mean(np_angles, axis=0)
-                    # Get deviaton
-                    deviation = np.abs(np.array(frame_angles) - finger_angle_averages)
-                    # If deviaton too large we call an anomaly
-                    std_angles = np.std(np_angles, axis=0)
-                    if (np.any(deviation > 2 * std_angles)): # 2σ rule since it adapts to baseline
-                        finger_anomaly = True
-                        frame_anomaly = True
-                        # Check if previous frame was anomalous and grow multiplier if it was
-                        if (previous_frame_anomalous):
-                            anomaly_multiplier = min(anomaly_multiplier + 0.3, 3.0)
-                        previous_frame_anomalous = True
-                        #Grow anomaly_score
-                        anomaly_score += 1 * anomaly_multiplier
-                        #Log the anomaly and save frame
-                        print(f"Finger curl anomaly detected at frame {total_frames}!")
-                        GeometryMapper.mp_drawing.draw_landmarks(
-                            frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS
-                        )
-                        finger_angle_anomaly_frames += 1
-                        """save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
-                        cv2.imwrite(save_path, frame)
-                        print("frame saved at: ", save_path)"""
-                    else :
-                        #Frame was not anomalous so multiplier zeroed
-                        anomaly_multiplier = 0
-                        previous_frame_anomalous = False
-                        
+            GeometryMapper.process_hands(rgb, hands, finger_angles)        
             # Process the pose of the frame
             anomaly_multiplier = 0.1
-            results = pose.process(rgb)
-            if results.pose_landmarks:
+            GeometryMapper.process_pose(rgb,frame,pose, arm_length_ratio_anomaly_frames, shoulder_to_shoulder_width_anomaly_frames, pose_shoulder_widths)
+            anomaly_multiplier = 0.1    
+            #Process face
+            GeometryMapper.process_face(rgb, face_mesh, face_distances, face_distance_anomaly_frames)
+
+            if frame_anomaly:
+                print(f"Frame {total_frames} was anomalous")
+                anomaly_frames += 1
+
+            #Calculate motion for frames
+            scale = 0.5
+            
+            # Convert frame to gray and resize
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            small_gray = cv2.resize(gray, (0,0), fx=scale, fy=scale)
+            if prev_gray is None:
+                prev_gray = small_gray
+            else:
+                flow = cv2.calcOpticalFlowFarneback(prev_gray, small_gray, None,
+                                                pyr_scale=0.5, levels=3, winsize=15,
+                                                iterations=3, poly_n=5, poly_sigma=1.2, flags=0)
+                magnitude, _ = cv2.cartToPolar(flow[...,0], flow[...,1])
+                motion_score = np.mean(magnitude)
+                prev_gray = small_gray
+                all_motion_scores.append(motion_score)
+                
+
+            #Progress bar continuation
+            progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
+            progress = min(100, max(0, progress))
+            progress_bar.progress(progress)
+            # Display and save frames with anomalies
+            if display and frame_anomaly and total_frames % 20 == 0:
+                cv2.imshow("Anomalous Frame", frame)
+                # Press 'q' to skip/exit display early
+                if cv2.waitKey(0) & 0xFF == ord('q'):
+                    break
+            
+        #Clean up
+        capture.release()
+        cv2.destroyAllWindows()
+        avg_motion = np.mean(all_motion_scores)
+        anomaly_score = anomaly_score / total_frames 
+        anomaly_score = anomaly_score - (avg_motion / 100)
+        anomaly_justification = ""
+        if anomaly_score < 0.025:
+            anomaly_justification = "Likely a real video"
+        elif 0.025 <= anomaly_score  < 0.050:
+            anomaly_justification = "Probably a real video but some minor anomalies were detected"
+        elif 0.05 <= anomaly_score < 0.075:
+            anomaly_justification = "Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected"
+        elif 0.075 <= anomaly_score < 0.1:
+            anomaly_justification = "Probably synthetic video, quite many anomalies"
+        elif anomaly_score >= 0.1:
+            anomaly_justification = "Highly suspicious most likely a synthethic video, many anomalies detected"
+
+        return {
+            "total_frames": total_frames,
+            "anomaly_frames": anomaly_frames,
+            "anatomy_anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
+            "finger_anomaly_frames": finger_angle_anomaly_frames,
+            "arm_length_ratio_anomaly_frames ": arm_length_ratio_anomaly_frames,
+            "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
+            "face_distance_anomaly_frames": face_distance_anomaly_frames,
+            "motion_score": avg_motion
+        }
+
+    def process_face(rgb, face_mesh, face_distances, face_distance_anomaly_frames):
+        global previous_frame_anomalous
+        global anomaly_multiplier
+        global anomaly_score
+        global frame_anomaly
+        global anomaly_frames
+        results = face_mesh.process(rgb)
+        if results.multi_face_landmarks:
+                # get all landmarks
+                face_landmarks = results.multi_face_landmarks[0].landmark
+                # currently we check 33 and 263 = eyes, 61 and 291 = mouth corners 159 and 386 = cheeks  
+                symmetric_pairs = [(33, 263), (61, 291), (159, 386)]
+                distances = []
+                for left_idx, right_idx in symmetric_pairs:
+                    left = face_landmarks[left_idx]
+                    right = face_landmarks[right_idx]
+                    # Get the symmetry distance low score = close, high score = far = likely synthetical 
+                    symmetry_distance = GeometryMapper.symmetry_distance(left, right) 
+                    # Append distance
+                    distances.append(symmetry_distance)
+                #Append this frames distances to all frames
+                face_distances.append(distances)
+                np_faces_distances = np.array(face_distances)
+                face_distance_averages = np.mean(np_faces_distances, axis=0)
+                #Get deviation
+                deviation = np.abs(np.array(distances) - face_distance_averages)
+                distances_std = np.std(np_faces_distances, axis=0)
+                if np.any(deviation > 2 * distances_std): #once again same heuristic
+                    global previous_frame_anomalous
+                    #Check previous frame for anomality
+                    if (previous_frame_anomalous):
+                        anomaly_multiplier += min(anomaly_multiplier + 0.3, 3.0)
+                    #Raise score times multiplier, also face anomalies are weighted less than finger anomalies so we increment the score less
+                    
+                    anomaly_score += 1 * anomaly_multiplier * 0.7
+                    previous_frame_anomalous = True
+                    frame_anomaly = True
+                    face_distance_anomaly_frames += 1
+                    print(f"Face anomaly detected at frame: {total_frames}!")
+                else:
+                    previous_frame_anomalous = False
+                    anomaly_multiplier = 0.1
+
+
+    def process_pose(rgb, frame,pose, arm_length_ratio_anomaly_frames, shoulder_to_shoulder_width_anomaly_frames, pose_shoulder_widths):
+        global previous_frame_anomalous
+        global anomaly_multiplier
+        global anomaly_score
+        global frame_anomaly
+        global anomaly_frames
+        results = pose.process(rgb)
+        if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
 
                 # Limb ratios from current frame
@@ -141,6 +222,7 @@ class GeometryMapper:
                     #Raise score times multiplier
                     anomaly_score += 1 * anomaly_multiplier * 0.7
                     previous_frame_anomalous = True
+                    global frame_anomaly
                     frame_anomaly = True
                     arm_length_ratio_anomaly_frames += 1
                 else:
@@ -170,103 +252,48 @@ class GeometryMapper:
                     previous_frame_anomalous = False
                 GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
 
+
+    def process_hands(rgb, hands, finger_angles):
+        global previous_frame_anomalous
+        global anomaly_multiplier
+        global anomaly_score
+        global frame_anomaly
+        global anomaly_frames
+        global finger_angle_anomaly_frames
+        results = hands.process(rgb)
+            #process hands
+        if results.multi_hand_landmarks:
+                #iterate over each spotted hand
+                for hand_landmarks in results.multi_hand_landmarks:
+                    #Get finger angles from current frame
+                    frame_angles, finger_count = GeometryMapper.finger_angles(hand_landmarks)
+                    finger_angles.append(frame_angles)
+                    np_angles = np.array(finger_angles)
+                    # Get the averages for each fingers angle
+                    finger_angle_averages = np.mean(np_angles, axis=0)
+                    # Get deviaton
+                    deviation = np.abs(np.array(frame_angles) - finger_angle_averages)
+                    # If deviaton too large we call an anomaly
+                    std_angles = np.std(np_angles, axis=0)
+                    if (np.any(deviation > 2 * std_angles)): # 2σ rule since it adapts to baseline
+                        frame_anomaly = True
+                        # Check if previous frame was anomalous and grow multiplier if it was
+                        if (previous_frame_anomalous):
+                            anomaly_multiplier = min(anomaly_multiplier + 0.3, 3.0)
+                        previous_frame_anomalous = True
+                        #Grow anomaly_score
+                        anomaly_score += 1 * anomaly_multiplier
+                        #Log the anomaly and save frame
+                        print(f"Finger curl anomaly detected at frame {total_frames}!")
+                        finger_angle_anomaly_frames += 1
+                        """save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
+                        cv2.imwrite(save_path, frame)
+                        print("frame saved at: ", save_path)"""
+                    else :
+                        #Frame was not anomalous so multiplier zeroed
+                        anomaly_multiplier = 0
+                        previous_frame_anomalous = False
                 
-            #Process face
-            results = face_mesh.process(rgb)
-            anomaly_multiplier = 0.1
-            if results.multi_face_landmarks:
-                # get all landmarks
-                face_landmarks = results.multi_face_landmarks[0].landmark
-                # currently we check 33 and 263 = eyes, 61 and 291 = mouth corners 159 and 386 = cheeks  
-                symmetric_pairs = [(33, 263), (61, 291), (159, 386)]
-                distances = []
-                for left_idx, right_idx in symmetric_pairs:
-                    left = face_landmarks[left_idx]
-                    right = face_landmarks[right_idx]
-                    # Get the symmetry distance low score = close, high score = far = likely synthetical 
-                    symmetry_distance = GeometryMapper.symmetry_distance(left, right) 
-                    # Append distance
-                    distances.append(symmetry_distance)
-                #Append this frames distances to all frames
-                face_distances.append(distances)
-                np_faces_distances = np.array(face_distances)
-                face_distance_averages = np.mean(np_faces_distances, axis=0)
-                #Get deviation
-                deviation = np.abs(np.array(distances) - face_distance_averages)
-                distances_std = np.std(np_faces_distances, axis=0)
-                if np.any(deviation > 2 * distances_std): #once again same heuristic
-                    if (previous_frame_anomalous):
-                        anomaly_multiplier += min(anomaly_multiplier + 0.3, 3.0)
-                    #Raise score times multiplier, also face anomalies are weighted less than finger anomalies so we increment the score less
-                    anomaly_score += 1 * anomaly_multiplier * 0.7
-                    previous_frame_anomalous = True
-                    frame_anomaly = True
-                    face_distance_anomaly_frames += 1
-                    print(f"Face anomaly detected at frame: {total_frames}!")
-                else:
-                    previous_frame_anomalous = False
-                    anomaly_multiplier = 0.1
-
-            if frame_anomaly:
-                print(f"Frame {total_frames} was anomalous")
-                anomaly_frames += 1
-
-            #Calculate motion for frames
-            scale = 0.5
-            
-            # Convert frame to gray and resize
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            small_gray = cv2.resize(gray, (0,0), fx=scale, fy=scale)
-            if prev_gray is None:
-                prev_gray = small_gray
-            else:
-                flow = cv2.calcOpticalFlowFarneback(prev_gray, small_gray, None,
-                                                pyr_scale=0.5, levels=3, winsize=15,
-                                                iterations=3, poly_n=5, poly_sigma=1.2, flags=0)
-                magnitude, _ = cv2.cartToPolar(flow[...,0], flow[...,1])
-                motion_score = np.mean(magnitude)
-                prev_gray = small_gray
-                all_motion_scores.append(motion_score)
-                
-
-            #Progress bar continuation
-            progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
-            progress_bar.progress(progress)
-            # Display and save frames with anomalies
-            if display and frame_anomaly and total_frames % 20 == 0:
-                cv2.imshow("Anomalous Frame", frame)
-                # Press 'q' to skip/exit display early
-                if cv2.waitKey(0) & 0xFF == ord('q'):
-                    break
-            
-            #Clean up
-        capture.release()
-        cv2.destroyAllWindows()
-        avg_motion = np.mean(all_motion_scores)
-        anomaly_score = anomaly_score / total_frames 
-        anomaly_score = anomaly_score * avg_motion
-        anomaly_justification = ""
-        if anomaly_score < 0.025:
-            anomaly_justification = "Likely a real video"
-        elif 0.025 <= anomaly_score  < 0.050:
-            anomaly_justification = "Probably a real video but some minor anomalies were detected"
-        elif 0.05 <= anomaly_score < 0.075:
-            anomaly_justification = "Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected"
-        elif 0.075 <= anomaly_score < 0.1:
-            anomaly_justification = "Probably synthetic video, quite many anomalies"
-        elif anomaly_score >= 0.1:
-            anomaly_justification = "Highly suspicious most likely a synthethic video, many anomalies detected"
-
-        return {
-            "total_frames": total_frames,
-            "anomaly_frames": anomaly_frames,
-            "anatomy_anomaly_rating": f"{anomaly_score:.3f}   which equates to : {anomaly_justification}",
-            "finger_anomaly_frames": finger_angle_anomaly_frames,
-            "arm_length_ratio_anomaly_frames ": arm_length_ratio_anomaly_frames,
-            "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
-            "face_distance_anomaly_frames": face_distance_anomaly_frames,
-            "motion_score": avg_motion
-        }
 
     def getLimbRatios(landmarks):
         left_upper_arm = GeometryMapper.segment_length(landmarks[11], landmarks[13])  # shoulder->elbow
