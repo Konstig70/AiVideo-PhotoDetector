@@ -203,6 +203,7 @@ if ladattuvideo is not None:
                 from MetaDataScrutiny.metadataanalyzer import metadata
                 from GeometryMapping.GeometryMapping import GeometryMapper
                 from Justification.justification import VideoJustificationAgent
+                from Justification.justification import PDFGenerator
                 #Inform user about whats happening
                 status_container.markdown("""
         <div class="status-success">
@@ -341,8 +342,19 @@ if ladattuvideo is not None:
                     results = agent.perform_news_cross_check(input)
                     st.markdown("### Here is the results of the news crosscheck")
                     st.markdown(f"#### {results}")    
-                    
-                # crosscheck based on user input
+            #Authenticity report
+            
+            with st.expander("### Download authenticity report"):
+                st.markdown("#### Authenticity report is created by using the data created from analysis")
+                if st.button("Download PDF report from your video"):
+                    pdf_creator = PDFGenerator(data, geometry_results, score)
+                    pdf_file = pdf_creator.generate_pdf()
+                    st.download_button(
+                        label="Download report PDF",
+                        data=pdf_file,
+                        file_name="AuthenticityReport.pdf",
+                        mime="application/pdf"
+                    )
 
 
     except Exception as e:

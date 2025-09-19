@@ -53,7 +53,7 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries, "a0e7d8ff1c654e2bbf357c2b1576ad9b")
+        results = self.search_news(queries, "")
         summary = self.analyze_news_relevance(context, results) 
         return summary
 
@@ -140,6 +140,37 @@ led to your conclusion.
         queries = ast.literal_eval(queries) if queries.startswith('[') else queries.split("\n")
         print("Generated queries:", queries)
         return queries
+    
+
+from io import BytesIO
+from reportlab.pdfgen import canvas
+
+class PDFGenerator:
+    def __init__(self, data, geometry_results, score):
+        self.data = data
+        self.geometry_results = geometry_results
+        self.score = score
+
+    def generate_pdf(self):
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer)
+        c.drawString(50, 800, f"Suspicion score: {self.score}")
+        y = 780
+        c.drawString(50, y, "Data:")
+        y -= 20
+        for k, v in self.data.items():
+            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
+            y -= 20
+        y -= 10
+        c.drawString(50, y, "Human anatomy anomaly detection results:")
+        y -= 20
+        for k, v in self.geometry_results.items():
+            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
+            y -= 20
+        c.showPage()
+        c.save()
+        buffer.seek(0)
+        return buffer
 
 
 def main():
