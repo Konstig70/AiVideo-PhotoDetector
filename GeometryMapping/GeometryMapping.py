@@ -138,7 +138,8 @@ class GeometryMapper:
         #Clean up
         capture.release()
         cv2.destroyAllWindows()
-        avg_motion = np.mean(motion_scores)
+        only_scores = [score for frame_id, score in motion_scores]
+        avg_motion = np.mean(only_scores)
         anomaly_score = anomaly_score / total_frames 
         anomaly_score = anomaly_score - (avg_motion / 100)
         anomaly_justification = ""
@@ -252,7 +253,7 @@ class GeometryMapper:
                 assymetry = abs(ratios_current_frame[0] - ratios_current_frame[1])
                 
                 # normally arms are symmetrical 1:1 so if assymetry is higher than 0.35 that is an anomaly
-                if assymetry > 0.35:    
+                if assymetry > 0.45:    
                     print(f"Arm assymetry anomaly detected at frame : {total_frames}!")   
                     #Check previous frame for anomality
                     if (previous_frame_anomalous):
@@ -320,7 +321,7 @@ class GeometryMapper:
                             anomaly_multiplier = min(anomaly_multiplier + 0.3, 3.0)
                         previous_frame_anomalous = True
                         #Grow anomaly_score
-                        anomaly_score += 1 * anomaly_multiplier
+                        anomaly_score += 1 * anomaly_multiplier * 1.4
                         #Log the anomaly and save frame
                         print(f"Finger curl anomaly detected at frame {total_frames}!")
                         finger_angle_anomaly_frames += 1

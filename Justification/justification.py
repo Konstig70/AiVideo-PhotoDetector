@@ -11,9 +11,10 @@ class VideoJustificationAgent:
     3. Motion anomalies (e.g., jitter, unnatural physics) are strong indicators.
     4. Give justification even if the video is likely real.
     5. The anatomy_anomaly_rating score corresponds with these values Anomaly score < 0.025: Likely a real video; 0.025 ≤ Anomaly score < 0.050: Probably a real video but some minor anomalies were detected; 0.05 ≤ Anomaly score < 0.075: Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected; 0.075 ≤ Anomaly score ≤ 0.1: Probably synthetic video, quite many anomalies; Anomaly score > 0.1: Highly suspicious, most likely a synthetic video, many anomalies detected. 
-    6. Be confident if the scores say likely real video you should mainly point it to be a real video (ofcourse mention that some anomalies were found but the overall analysis needs to match the results)
-    7. Even though you understand the anomaly rating keep the explanation simple so that a non tech savvy person can understand it i.e dont mention the actual score, mentioning that some amount of frames contained anomalies is ok just dont mention the anomaly score itself just reference it.
-    8. Motion score indicates how much motion is in the scene, higher scores indicate more motion, which in turn raises the amount of anomalies even in real videos. So always take motion score into account when justifying.  
+    6. The anatomy_anomaly_rating score should not be the only factor to consider, conscider also the amount and type of anomalies spotted.
+    7. Be confident if the scores say likely real video you should mainly point it to be a real video (ofcourse mention that some anomalies were found but the overall analysis needs to match the results)
+    8. Even though you understand the anomaly rating keep the explanation simple so that a non tech savvy person can understand it i.e dont mention the actual score, mentioning that some amount of frames contained anomalies is ok just dont mention the anomaly score itself just reference it.
+    9. Motion score indicates how much motion is in the scene, higher scores indicate more motion, which in turn raises the amount of anomalies even in real videos. So always take motion score into account when justifying, i.e with enough movement even a real video can have quite many anomalies.  
     """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
@@ -53,7 +54,7 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries, "")
+        results = self.search_news(queries, "6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601")
         summary = self.analyze_news_relevance(context, results) 
         return summary
 
@@ -71,6 +72,7 @@ led to your conclusion.
         - Provide a short summary of supporting evidence.
         - You are an expert in evaluating the credibility of information. 
         - You can ignore articles that are not relevant to the video context.
+        - Any none relevant articles should not be considered or even mentioned in the summary, just skip them altogether.
         - Focus on if the evidence or lack there of raises concerns for the videos authenticy or lowers them.
         - Plese write answer as if it where a scientific report. So dont use we or I in the answer. for example use words like "Infromation was found regariding x" etc.
         - Have the summary be concise and to the point. max 6 sentences.
@@ -93,19 +95,10 @@ led to your conclusion.
         newsapi = NewsApiClient(api_key=api_key)
         results = []
         for q in queries:
-            response = newsapi.get_everything(q, language='en', page_size=5)
-            print("News API response", response)
-            for article in response.get('articles', []):
-                results.append({
-                    "title": article['title'],
-                    "description": article['description'],
-                    "url": article['url'],
-                    "publishedAt": article['publishedAt']
-                })
             response = GoogleSearch({
                 "q": q,
                 "google_domain": "google.com",
-                "api_key": ""
+                "api_key": "ec4068df92922e533be0aa03e6fe72fc857af0167801691b61fac9bec3085ddb"
             }).get_dict()
             for article in response.get('organic_results', []):
                 results.append({

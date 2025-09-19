@@ -238,7 +238,7 @@ if ladattuvideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                     
                 # more analysis
-                agent = VideoJustificationAgent("")
+                agent = VideoJustificationAgent("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")
                 response = agent.analyze({**result, **geometry_results})
 
                 
