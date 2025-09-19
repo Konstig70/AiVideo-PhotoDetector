@@ -1,7 +1,8 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
 from newsapi import NewsApiClient  # or use Google Custom Search API
-
+import os
+from dotenv import load_dotenv
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -51,9 +52,9 @@ led to your conclusion.
         return response.choices[0].message.content
 
     def perform_news_cross_check(self, context):
-        queries = VideoJustificationAgent.generate_search_queries(self, context)
-        results = VideoJustificationAgent.search_news(queries, "6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601")
-        summary = VideoJustificationAgent.analyze_news_relevance(self, context, results) 
+        queries = self.generate_search_queries(context)
+        results = self.search_news(queries)
+        summary = self.analyze_news_relevance(context, results) 
         return summary
 
     def analyze_news_relevance(self, video_context, articles):
@@ -82,7 +83,7 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
-    def search_news(queries, api_key="6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601"):
+    def search_news(queries, api_key="a0e7d8ff1c654e2bbf357c2b1576ad9b"):
         newsapi = NewsApiClient(api_key=api_key)
         results = []
         for q in queries:
