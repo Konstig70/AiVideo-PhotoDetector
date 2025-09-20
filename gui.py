@@ -292,7 +292,13 @@ if ladattuvideo or youtubevideo is not None:
             # Justification based on data
             agent = VideoJustificationAgent("")
             response = agent.analyze({**result, **anatomy_results})
-
+            period_index = response.find('.')
+            if period_index != -1:
+                beginning_phrase = response[:period_index + 1]
+                remainder = response[period_index + 1:].strip()
+            else:
+                remainder = response
+                beginning_phrase = ""
                 
             try:
                 import cv2
@@ -362,7 +368,6 @@ if ladattuvideo or youtubevideo is not None:
                 cap.release()
                 # Clean up
                 if os.path.exists(temp_path) and cap.isOpened() == False:
-                    print("Deleting temp file")
                     os.unlink(temp_path)
 
 
@@ -372,8 +377,8 @@ if ladattuvideo or youtubevideo is not None:
             st.video(ladattuvideo)
             
             
-            st.markdown("## Summary for video:")
-            st.markdown(f"##### {response}")
+            st.markdown(f"## Summary for video: {beginning_phrase}")
+            st.markdown(f"##### {remainder}")
             data = result["metadata"]
             score = result["metadata_anomaly_score"]
             

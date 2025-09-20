@@ -52,7 +52,9 @@ class GeometryMapper:
         global face_distance_anomaly_frames
         global arm_length_ratio_anomaly_frames
         global shoulder_to_shoulder_width_anomaly_frames
-        
+        global previous_frame_anomalous
+        global frame_anomaly
+
         # Open video file from path
         capture = cv2.VideoCapture(video_path)
         # initialize hand tracking model
@@ -127,7 +129,11 @@ class GeometryMapper:
                 if frame_anomaly:
                     # print(f"Frame {total_frames} was anomalous")
                     anomaly_frames += 1
-            
+                print(f"Frame anomalus status: {frame_anomaly}, previous frame anomalus status: {previous_frame_anomalous}")
+                if not frame_anomaly and total_frames % 20 == 0:
+                    save_path = os.path.join(os.getcwd(), f"../no_anomaly_frame_.png")
+                    cv2.imwrite(save_path, frame)
+                    print("No anomaly frame saved at: ", save_path)
                 #Progress bar continuation
                 progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
                 progress = min(100, max(0, progress))

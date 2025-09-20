@@ -21,26 +21,33 @@ class VideoJustificationAgent:
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         self.client = OpenAI(api_key=api_key)
         self.model = model
+        self.messages = []
 
 
     def _make_prompt(self, video_data: dict) -> str:
-        with open(os.path.join(os.getcwd(), f"../finger_anomaly_frame_.png"), 'rb') as f:
-            finger_frame = f.read()
-        with open(os.path.join(os.getcwd(), f"../limb_anomaly_frame_.png"),'rb') as f:
-            limb_frame = f.read()
-        with open(os.path.join(os.getcwd(), f"../face_anomaly_frame_.png"), 'rb') as f:
-            face_frame = f.read()
-        ready_frames = {
-            "finger_anomaly_frame": io.BytesIO(finger_frame),
-            "limb_anomaly_frame": io.BytesIO(limb_frame),
-            "face_anomaly_frame": io.BytesIO(face_frame),
+        frame_files = {
+            "finger_anomaly_frame": "../finger_anomaly_frame_.png",
+            "limb_anomaly_frame": "../limb_anomaly_frame_.png",
+            "face_anomaly_frame": "../face_anomaly_frame_.png",
+            "no_anomaly_frame": "../no_anomaly_frame_.png"
         }
+
+        ready_frames = {}
+
+        for key, relative_path in frame_files.items():
+            full_path = os.path.join(os.getcwd(), relative_path)
+            if os.path.isfile(full_path):
+                with open(full_path, 'rb') as f:
+                    ready_frames[key] = io.BytesIO(f.read())
+            else:
+                print(f"Warning: {full_path} not found, skipping {key}")
         """Create justification based on video_results"""
         return f"""
 You are a professional synthetic video analyst.
 Your job is to review the following video data and 4 frames from the video (three of them contain an anomaly one doesnt). After reviewing provide a human-like justification
-about whether the video is synthetic or not. Focus on generalization a non tech savvy person needs to understand the justification, without needing to understand our scores in depth (ofcourse you can mention that score is a factor).
+about whether the video is synthetic or not with a max 6-word summary in the start with a score related emoji (for example a real video start could be "The video is real :Thumbsup:"). Focus on generalization a non tech savvy person needs to understand the justification, without needing to understand our scores in depth (ofcourse you can mention that score is a factor).
 Make the justification max 6 senteces. IF one of the frames is not loading, just ignore it and continue with the rest, the absense of frames shouldnt stop you from giving a justification.
+Dont mention the actual scores in the justification, just reference them in a human understandable way, also dont reference how many frames you got and how many were anomalous the frames are there so that you get a feel of how a certain anomaly or no anomaly might look (ofcourse you can mention that you analyzed frames and found that the anomalies were present).
 
 Guidelines to consider:
 {self.GUIDELINES}
@@ -53,16 +60,27 @@ led to your conclusion.
 """
 
     def analyze(self, video_data: dict) -> str:
-        """Create prompt and return it"""
+        """Create prompt and return it, keeping conversation memory"""
         prompt = self._make_prompt(video_data)
+        
+        # Initialize messages if not already done
+        if not hasattr(self, "messages"):
+            self.messages = [{"role": "system", "content": "You are professional AI video data analyst."}]
+        
+        # Append new user prompt
+        self.messages.append({"role": "user", "content": prompt})
+        
+        # Send full conversation to the model
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": "You are professional AIvideo data analyst."},
-                {"role": "user", "content": prompt},
-            ]
+            messages=self.messages
         )
-        return response.choices[0].message.content
+        
+        # Append assistant reply to conversation
+        reply = response.choices[0].message.content
+        self.messages.append({"role": "assistant", "content": reply})
+        
+        return reply
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
@@ -95,36 +113,50 @@ led to your conclusion.
 
     def analyze_news_relevance(self, video_context, articles):
         """
-        Prompts LLM to evaluate if articles are relevant to video content
+        Prompts LLM to evaluate if articles are relevant to video content, keeping conversation memory.
         """
+        # Initialize messages if not already done
+        if not hasattr(self, "messages"):
+            self.messages = [{"role": "system", "content": "You are an AI fact-checker and expert in evaluating video content credibility."}]
+
+        # Format articles into text
         articles_text = "\n".join([f"- {a['title']}: {a['description']}" for a in articles])
         print(articles_text)
+
+        # Build prompt
         prompt = f"""
-        You are an AI fact-checker.
-        Given a video's content and a list of search queries results based on videos content, determine:
+        This is a continuation of the analysis you just performed now your job is to evaluate if the following articles are relevant to the video content and if so do they boost its chance of being real or synthetic.
         - Are the results relevant to the video?
         - Are there inconsistencies?
         - Provide a short summary of supporting evidence.
-        - You are an expert in evaluating the credibility of information. 
-        - You can ignore articles that are not relevant to the video context.
-        - Any none relevant articles should not be considered or even mentioned in the summary, just skip them altogether.
-        - Focus on if the evidence or lack there of raises concerns for the videos authenticy or lowers them.
-        - Plese write answer as if it where a scientific report. So dont use we or I in the answer. for example use words like "Infromation was found regariding x" etc.
-        - Have the summary be concise and to the point. max 6 sentences.
+        - Ignore irrelevant articles entirely.
+        - Focus on whether evidence or lack thereof raises concerns for the video's authenticity.
+        - Write the answer as a scientific report (no "we" or "I"). Max 6 sentences.
+        - If no relevant articles are found, state that the news crosscheck did not provide anything that found help either case.
         
         Video context:
         {video_context}
         Search query results:
         {articles_text}
-
+        
         Answer in a concise summary.
         """
+
+        # Append user prompt to messages
+        self.messages.append({"role": "user", "content": prompt})
+
+        # Send the full conversation to the model
         response = self.client.chat.completions.create(
             model="gpt-4",
-            messages=[{"role":"user","content":prompt}],
+            messages=self.messages,
             temperature=0
         )
-        return response.choices[0].message.content
+
+        # Get assistant reply and append it to conversation
+        reply = response.choices[0].message.content
+        self.messages.append({"role": "assistant", "content": reply})
+
+        return reply
 
 
     def generate_search_queries(self, video_context):
