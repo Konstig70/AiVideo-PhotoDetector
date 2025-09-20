@@ -1,6 +1,5 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
-from newsapi import NewsApiClient  # or use Google Custom Search API
 import os
 from serpapi import GoogleSearch
 
@@ -91,25 +90,6 @@ led to your conclusion.
         )
         return response.choices[0].message.content
 
-    def search_news(self, queries, api_key=""):
-        newsapi = NewsApiClient(api_key=api_key)
-        results = []
-        for q in queries:
-            response = GoogleSearch({
-                "q": q,
-                "google_domain": "google.com",
-                "api_key": ""
-            }).get_dict()
-            for article in response.get('organic_results', []):
-                results.append({
-                    "title": article.get('title'),
-                    "description": article.get('snippet'),
-                    "url": article.get('link'),
-                    "source": article.get('source'),
-                    "publishedAt": article.get('date')
-                })
-        print("News articles found:", results)
-        return results
 
     def generate_search_queries(self, video_context):
         """
