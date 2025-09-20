@@ -235,7 +235,7 @@ class GeometryMapper:
                     face_distance_anomaly_frames += 1
                     print(f"Face anomaly detected at frame: {total_frames}!")
                     if face_distance_anomaly_frames == 1:
-                        #GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks, face_mesh.FACEMESH_TESSELATION)
+                        GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks, GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
                         save_path = os.path.join(os.getcwd(), f"face_anomaly_frame_.png")
                         cv2.imwrite(save_path, frame)        
                         print("frame saved at: ", save_path)
@@ -345,7 +345,7 @@ class GeometryMapper:
                         print(f"Finger curl anomaly detected at frame {total_frames}!")
                         finger_angle_anomaly_frames += 1
                         if finger_angle_anomaly_frames == 1:
-                            #GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_hand_landmarks, mp.solutions.hands.HAND_CONNECTIONS)
+                            GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"finger_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
                         print("frame saved at: ", save_path) 
