@@ -7,15 +7,7 @@ from pytube import YouTube
 import yt_dlp
 from io import BytesIO
 import psutil
-
-def who_owns_file(path):
-                        for proc in psutil.process_iter(["pid", "name", "open_files"]):
-                            try:
-                                for f in proc.info["open_files"] or []:
-                                    if f.path == path:
-                                        print(f"⚠️ File {path} is still open by {proc.info['name']} (PID {proc.info['pid']})")
-                            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                                pass
+import requests
                     
 
 # Initialize session state
@@ -149,8 +141,10 @@ col3, col1, col2 = st.columns([3, 2, 1])
 
 with col3:
     st.markdown("### Paste YouTube link")
+
     youtube_link = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=example")
     youtubevideo = None
+
     if youtube_link:
         # Ensure URL starts with https://
         url = youtube_link if youtube_link.startswith("https://") else "https://" + youtube_link
@@ -163,31 +157,34 @@ with col3:
             </div>
             """, unsafe_allow_html=True)
 
-            os.makedirs("downloads", exist_ok=True)
-
             ydl_opts = {
-                "outtmpl": "downloads/youtube_video.%(ext)s",
                 "format": "mp4",
                 "quiet": True,
             }
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=True)
-                    video_path = ydl.prepare_filename(info)
-                    st.success(f"✅ Video downloaded successfully: {video_path}")
+                    info = ydl.extract_info(url, download=False)  # Don't download to disk
+                    stream_url = info["url"]
 
-                    # Read video as bytes so it can be fed to your file uploader code
-                    with open(video_path, "rb") as f:
-                        video_bytes = f.read()
-                        youtubevideo = BytesIO(video_bytes)
-                        youtubevideo.name = os.path.basename(video_path)  # mimic UploadedFile.name
+                    # Stream video bytes directly into memory
+                    buffer = BytesIO()
+                    r = requests.get(stream_url, stream=True)
+                    for chunk in r.iter_content(chunk_size=8192):
+                        buffer.write(chunk)
 
-                    # Now you can pass ladattuvideo to your existing processing functions
-                    # e.g., analyze_video(ladattuvideo)
+                    buffer.seek(0)
+                    buffer.name = "youtube_video.mp4"  # mimic UploadedFile.name
+                    youtubevideo = buffer
+
+                st.success("✅ Video loaded into memory")
+
+                # Now you can pass youtubevideo to your existing processing functions
+                # e.g., analyze_video(youtubevideo)
 
             except Exception as e:
                 st.error(f"❌ Error downloading video: {e}")
+
 
 with col1:
     st.markdown("### 📁 Upload Video File")
@@ -281,20 +278,20 @@ if ladattuvideo or youtubevideo is not None:
             print(st.session_state.file_path)
             if st.session_state.file_path == ladattuvideo.name:
                     if st.session_state.results:     
-                        geometry_results = st.session_state.results
+                        anatomy_results = st.session_state.results
                         st.session_state.file_path = ladattuvideo.name
                     else:
-                        geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
-                        st.session_state.results = geometry_results
+                        anatomy_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+                        st.session_state.results = anatomy_results
                         st.session_state.file_path = ladattuvideo.name
             else:
-                    geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
-                    st.session_state.results = geometry_results
+                    anatomy_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
+                    st.session_state.results = anatomy_results
                     st.session_state.file_path = ladattuvideo.name
                   
             # Justification based on data
-            agent = VideoJustificationAgent("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")
-            response = agent.analyze("This is a test prompt")
+            agent = VideoJustificationAgent("")
+            response = agent.analyze({**result, **anatomy_results})
 
                 
             try:
@@ -308,7 +305,6 @@ if ladattuvideo or youtubevideo is not None:
         </div>
         """, unsafe_allow_html=True)
         
-                print("Video avataan")
                 if cap.isOpened():
                     fps = cap.get(cv2.CAP_PROP_FPS)
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -363,7 +359,6 @@ if ladattuvideo or youtubevideo is not None:
                 </div>
                 """, unsafe_allow_html=True)
             finally:
-                print("Releasing video capture")
                 cap.release()
                 # Clean up
                 if os.path.exists(temp_path) and cap.isOpened() == False:
@@ -374,12 +369,9 @@ if ladattuvideo or youtubevideo is not None:
             
             
             st.markdown("### Video Preview")
-            print("Täälä nyt")
             st.video(ladattuvideo)
             
             
-            
-            print("Justification response:", response)
             st.markdown("## Summary for video:")
             st.markdown(f"##### {response}")
             data = result["metadata"]
@@ -394,10 +386,9 @@ if ladattuvideo or youtubevideo is not None:
                     st.markdown(f"  - {val}: {v}")
                 st.markdown(f"Suspicion score: {score}")
                 st.markdown(f"Human anatomy anomaly detection results: ")
-                """for key, value in geometry_results.items():
+                for key, value in anatomy_results.items():
                     val = key.replace("_"," ")
                     st.markdown(f"  - {val}: {value}")
-            """
             #Possible news crosscheck
             with st.expander("### Perform news/search crosscheck"):
                 st.markdown("#### A news crosscheck can be performed to see if any news articles were published about the contents of the video. This can help to verify the authenticity of the video.")
@@ -416,7 +407,7 @@ if ladattuvideo or youtubevideo is not None:
             with st.expander("### Download authenticity report"):
                 st.markdown("#### Authenticity report is created by using the data created from analysis")
                 if st.button("Download PDF report from your video"):
-                    pdf_creator = PDFGenerator(data, geometry_results, score)
+                    pdf_creator = PDFGenerator(data, anatomy_results, score)
                     pdf_file = pdf_creator.generate_pdf()
                     st.download_button(
                         label="Download report PDF",
