@@ -2,7 +2,8 @@ The following libraries are needed to insall for this program to run (names corr
 openai
 opencv-python
 mediapipe
-serpapi
+google-search-results
 streamlit
 pytube
 pymediainfo
+reportlab
