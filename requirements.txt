@@ -1,0 +1,8 @@
+The following libraries are needed to insall for this program to run (names correspond to their pip installation names):
+openai
+opencv-python
+mediapipe
+serpapi
+streamlit
+pytube
+pymediainfo

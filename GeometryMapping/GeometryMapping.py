@@ -19,7 +19,8 @@ anomaly_score = 0
 anomaly_multiplier = 0.1
 previous_frame_anomalous = False
 frame_anomaly = False
-finger_angle_anomaly_frames = 0    
+finger_angle_anomaly_frames = 0
+is_finger_anomaly_frame_saved = False    
 face_distance_anomaly_frames = 0
 arm_length_ratio_anomaly_frames = 0
 shoulder_to_shoulder_width_anomaly_frames = 0
@@ -107,7 +108,7 @@ class GeometryMapper:
             
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             #Get hands and analyze
-            GeometryMapper.process_hands(rgb, hands, finger_angles)        
+            is_finger_anomaly_frame_saved = GeometryMapper.process_hands(rgb, hands, finger_angles, frame, is_finger_anomaly_frame_saved)        
             # Process the pose of the frame
             anomaly_multiplier = 0.1
             GeometryMapper.process_pose(rgb,frame,pose, pose_shoulder_widths)
@@ -293,7 +294,7 @@ class GeometryMapper:
                 GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
 
 
-    def process_hands(rgb, hands, finger_angles):
+    def process_hands(rgb, hands, finger_angles, frame, is_finger_anomaly_frame_saved):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
@@ -325,13 +326,16 @@ class GeometryMapper:
                         #Log the anomaly and save frame
                         print(f"Finger curl anomaly detected at frame {total_frames}!")
                         finger_angle_anomaly_frames += 1
-                        """save_path = os.path.join(os.getcwd(), f"anomaly_frame_{total_frames}.png")
-                        cv2.imwrite(save_path, frame)
-                        print("frame saved at: ", save_path)"""
+                        if not is_finger_anomaly_frame_saved:
+                            save_path = os.path.join(os.getcwd(), f"finger_anomaly_frame_.png")
+                            cv2.imwrite(save_path, frame)
+                        print("frame saved at: ", save_path) 
+                        return True
                     else :
                         #Frame was not anomalous so multiplier zeroed
                         anomaly_multiplier = 0
                         previous_frame_anomalous = False
+                        return False
                 
 
     def getLimbRatios(landmarks):
