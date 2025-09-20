@@ -36,7 +36,7 @@ Video Data:
 {video_data}
 
 Provide your answer as a concise, human-readable explanation, including which anomalies
-led to your conclusion.
+led to your conclusion. 
 """
 
     def analyze(self, video_data: dict) -> str:
