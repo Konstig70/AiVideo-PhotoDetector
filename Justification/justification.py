@@ -54,7 +54,7 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries, "6d1dcce621d6c8dad7899a269eff9dc17fd0a0a7d1c30829b846819c5890f601")
+        results = self.search_news(queries, "")
         summary = self.analyze_news_relevance(context, results) 
         return summary
 
@@ -98,7 +98,7 @@ led to your conclusion.
             response = GoogleSearch({
                 "q": q,
                 "google_domain": "google.com",
-                "api_key": "ec4068df92922e533be0aa03e6fe72fc857af0167801691b61fac9bec3085ddb"
+                "api_key": ""
             }).get_dict()
             for article in response.get('organic_results', []):
                 results.append({

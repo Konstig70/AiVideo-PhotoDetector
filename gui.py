@@ -3,6 +3,7 @@ import tempfile
 import os
 from pathlib import Path
 import time
+from pytube import YouTube
 
 # Initialize session state
 if "results" not in st.session_state:
@@ -127,7 +128,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Main content area
-col1, col2 = st.columns([2, 1])
+col3, col1, col2 = st.columns([3, 2, 1])
+
+with col3:
+    st.markdown("### Paste YouTube link")
+    youtube_link = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=example")
+    if st.button("Analyze video from YouTube"):
+        if youtube_link:
+            st.markdown(f"""
+            <div class="status-success">
+                <strong>✅ YouTube Analysis Initiated</strong><br>
+                Analyzing video from: {youtube_link}
+            </div>
+            """, unsafe_allow_html=True)
+
+        try:
+            # Download YouTube video using pytube
+            yt = YouTube(youtube_link)
+            stream = yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
+            
+            download_path = stream.download(output_path="downloads", filename="youtube_video.mp4")
+            
+            # Confirmation
+            st.success(f"Video downloaded successfully: {yt.title}")
+
+            time.sleep(2)
+            st.markdown(f"""
+            <div class="status-success">
+                <strong>✅ Analysis Complete</strong><br>
+                The video from the provided YouTube link has been analyzed successfully.
+            </div>
+            """, unsafe_allow_html=True)
+
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
 
 with col1:
     st.markdown("### 📁 Upload Video File")
@@ -238,7 +272,7 @@ if ladattuvideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                     
                 # more analysis
-                agent = VideoJustificationAgent("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")
+                agent = VideoJustificationAgent("")
                 response = agent.analyze({**result, **geometry_results})
 
                 
