@@ -8,6 +8,7 @@ from queue import Queue
 from threading import Thread
 
 
+
 motion_queue = Queue()
 motion_scores = []
 prev_gray_motion = None
@@ -20,7 +21,6 @@ anomaly_multiplier = 0.1
 previous_frame_anomalous = False
 frame_anomaly = False
 finger_angle_anomaly_frames = 0
-is_finger_anomaly_frame_saved = False    
 face_distance_anomaly_frames = 0
 arm_length_ratio_anomaly_frames = 0
 shoulder_to_shoulder_width_anomaly_frames = 0
@@ -89,7 +89,6 @@ class GeometryMapper:
         arm_length_ratio_anomaly_frames = 0
         shoulder_to_shoulder_width_anomaly_frames = 0
 
-
         if progress_bar is not None:
             progress_bar.progress(progress)  # Initial progress
         
@@ -106,24 +105,26 @@ class GeometryMapper:
                 break
             total_frames += 1
             
+             #Calculate motion for frames
+            if total_frames % 5 == 0:  # Process every 5th frame for motion to reduce load
+                print("Calculating motion for frame:", total_frames)
+                motion_queue.put((total_frames, frame.copy()))
+           
+
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             #Get hands and analyze
-            is_finger_anomaly_frame_saved = GeometryMapper.process_hands(rgb, hands, finger_angles, frame, is_finger_anomaly_frame_saved)        
+            GeometryMapper.process_hands(rgb, hands, finger_angles, frame)
             # Process the pose of the frame
             anomaly_multiplier = 0.1
-            GeometryMapper.process_pose(rgb,frame,pose, pose_shoulder_widths)
+            GeometryMapper.process_pose(rgb,pose, pose_shoulder_widths,frame)
             anomaly_multiplier = 0.1    
             #Process face
-            GeometryMapper.process_face(rgb, face_mesh, face_distances)
+            GeometryMapper.process_face(rgb, face_mesh, face_distances, frame)
             print("Anomaly score so far: ", anomaly_score)
 
             if frame_anomaly:
                 # print(f"Frame {total_frames} was anomalous")
                 anomaly_frames += 1
-            #Calculate motion for frames
-            if total_frames % 5 == 0:  # Process every 5th frame for motion to reduce load
-                print("Calculating motion for frame:", total_frames)
-                motion_queue.put((total_frames, frame.copy()))
            
             #Progress bar continuation
             progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
@@ -166,6 +167,7 @@ class GeometryMapper:
             "motion_score": avg_motion
         }
     
+    #Motion calculation worker thread
     def motion_worker():
         global prev_gray_motion
         while True:
@@ -194,7 +196,7 @@ class GeometryMapper:
             prev_gray = small_gray
             return prev_gray, motion_score
 
-    def process_face(rgb, face_mesh, face_distances):
+    def process_face(rgb, face_mesh, face_distances, frame):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
@@ -233,12 +235,17 @@ class GeometryMapper:
                     frame_anomaly = True
                     face_distance_anomaly_frames += 1
                     print(f"Face anomaly detected at frame: {total_frames}!")
+                    if face_distance_anomaly_frames == 1:
+                        GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks, GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
+                        save_path = os.path.join(os.getcwd(), f"face_anomaly_frame_.png")
+                        cv2.imwrite(save_path, frame)        
+                        print("frame saved at: ", save_path)
                 else:
                     previous_frame_anomalous = False
                     anomaly_multiplier = 0.1
 
 
-    def process_pose(rgb, frame,pose, pose_shoulder_widths):
+    def process_pose(rgb, pose, pose_shoulder_widths, frame):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
@@ -266,10 +273,16 @@ class GeometryMapper:
                     global frame_anomaly
                     frame_anomaly = True
                     arm_length_ratio_anomaly_frames += 1
+                    if arm_length_ratio_anomaly_frames or shoulder_to_shoulder_width_anomaly_frames == 1:
+                            GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
+                            save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
+                            cv2.imwrite(save_path, frame)        
                 else:
                     #Frame was not anomalous so we reset multiplier 
                     anomaly_multiplier = 0.1
                     previous_frame_anomalous = False
+                    
+                    
                 # check shoulder to shoulder width
                 pose_shoulder_widths.append(ratios_current_frame[2])
                 np_shoulder_widths = np.array(pose_shoulder_widths)
@@ -287,14 +300,20 @@ class GeometryMapper:
                     previous_frame_anomalous = True
                     frame_anomaly = True
                     shoulder_to_shoulder_width_anomaly_frames += 1
+                    if arm_length_ratio_anomaly_frames or shoulder_to_shoulder_width_anomaly_frames == 1:
+                            #GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
+                            save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
+                            cv2.imwrite(save_path, frame)
+                            
                 else:
                     #Frame was not anomalous so we reset multiplier 
                     anomaly_multiplier = 0.1
                     previous_frame_anomalous = False
-                GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
+                    return False
+                
 
 
-    def process_hands(rgb, hands, finger_angles, frame, is_finger_anomaly_frame_saved):
+    def process_hands(rgb, hands, finger_angles, frame):
         global previous_frame_anomalous
         global anomaly_multiplier
         global anomaly_score
@@ -326,16 +345,15 @@ class GeometryMapper:
                         #Log the anomaly and save frame
                         print(f"Finger curl anomaly detected at frame {total_frames}!")
                         finger_angle_anomaly_frames += 1
-                        if not is_finger_anomaly_frame_saved:
+                        if finger_angle_anomaly_frames == 1:
+                            GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"finger_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
                         print("frame saved at: ", save_path) 
-                        return True
                     else :
                         #Frame was not anomalous so multiplier zeroed
                         anomaly_multiplier = 0
                         previous_frame_anomalous = False
-                        return False
                 
 
     def getLimbRatios(landmarks):
