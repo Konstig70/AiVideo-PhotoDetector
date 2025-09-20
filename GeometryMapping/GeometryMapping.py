@@ -273,7 +273,7 @@ class GeometryMapper:
                     global frame_anomaly
                     frame_anomaly = True
                     arm_length_ratio_anomaly_frames += 1
-                    if arm_length_ratio_anomaly_frames or shoulder_to_shoulder_width_anomaly_frames == 1:
+                    if arm_length_ratio_anomaly_frames == 1:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)   
@@ -301,7 +301,7 @@ class GeometryMapper:
                     previous_frame_anomalous = True
                     frame_anomaly = True
                     shoulder_to_shoulder_width_anomaly_frames += 1
-                    if arm_length_ratio_anomaly_frames or shoulder_to_shoulder_width_anomaly_frames == 1:
+                    if shoulder_to_shoulder_width_anomaly_frames == 1:
                             #GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)

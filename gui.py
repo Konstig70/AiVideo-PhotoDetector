@@ -272,7 +272,7 @@ if ladattuvideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                     
                 # more analysis
-                agent = VideoJustificationAgent("")
+                agent = VideoJustificationAgent("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")
                 response = agent.analyze({**result, **geometry_results})
 
                 
@@ -352,6 +352,7 @@ if ladattuvideo is not None:
             st.markdown(f"##### {response}")
             data = result["metadata"]
             score = result["metadata_anomaly_score"]
+            
             # Technical details section
             with st.expander("### 📋 Technical Analysis (click to expand)"):
                 st.markdown(" #### Here is all of the data that our algorithms were able to detect. The anomaly score is our own scoring system that is calculated by combining different data values and different detected anomalies with some anomalies weigthed more than others (which can be seen below):")
@@ -364,6 +365,7 @@ if ladattuvideo is not None:
                 for key, value in geometry_results.items():
                     val = key.replace("_"," ")
                     st.markdown(f"  - {val}: {value}")
+            
             #Possible news crosscheck
             with st.expander("### Perform news/search crosscheck"):
                 st.markdown("#### A news crosscheck can be performed to see if any news articles were published about the contents of the video. This can help to verify the authenticity of the video.")
@@ -376,6 +378,7 @@ if ladattuvideo is not None:
                     results = agent.perform_news_cross_check(input)
                     st.markdown("### Here is the results of the news crosscheck")
                     st.markdown(f"#### {results}")    
+            
             #Authenticity report
             
             with st.expander("### Download authenticity report"):

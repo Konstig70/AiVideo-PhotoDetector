@@ -25,7 +25,7 @@ class VideoJustificationAgent:
         """Create justification based on video_results"""
         return f"""
 You are a professional synthetic video analyst.
-Your job is to review the following video data and provide a human-like justification
+Your job is to review the following video data and 4frames from the video also provided (three of them contain an anomaly one doesnt). After reviewing provide a human-like justification
 about whether the video is synthetic or not. Focus on generalization a non tech savvy person needs to understand the justification, without needing to understand our scores in depth (ofcourse you can mention that score is a factor).
 Make the justification max 6 senteces
 
@@ -53,9 +53,32 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries, "")
+        results = self.search_news(queries)
         summary = self.analyze_news_relevance(context, results) 
         return summary
+    
+    def search_news(self, queries):
+        """
+        Perform a Google News search using SerpApi and return organic_results.
+
+        Args:
+            queries (str): The search query.
+
+        Returns:
+            list: List of organic results from the search.
+        """
+        # Make sure you have your SERPAPI_API_KEY set in your environment variables
+        params = {
+            "engine": "google",
+            "q": queries,
+            "api_key": ""
+        }
+
+        search = GoogleSearch(params)
+        results = search.get_dict()
+        
+        # Return organic results (main news articles)
+        return results.get("organic_results", [])
 
     def analyze_news_relevance(self, video_context, articles):
         """
@@ -171,7 +194,7 @@ motion score: 1.0949195623397827
 
     asked_key = input("Tell your API KEY: ")
     agent = VideoJustificationAgent(api_key=asked_key)
-    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"], "a0e7d8ff1c654e2bbf357c2b1576ad9b"))
+    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"]))
     
 
 if __name__ == "__main__":
