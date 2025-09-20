@@ -6,6 +6,17 @@ import time
 from pytube import YouTube
 import yt_dlp
 from io import BytesIO
+import psutil
+
+def who_owns_file(path):
+                        for proc in psutil.process_iter(["pid", "name", "open_files"]):
+                            try:
+                                for f in proc.info["open_files"] or []:
+                                    if f.path == path:
+                                        print(f"⚠️ File {path} is still open by {proc.info['name']} (PID {proc.info['pid']})")
+                            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                pass
+                    
 
 # Initialize session state
 if "results" not in st.session_state:
@@ -239,6 +250,7 @@ if ladattuvideo or youtubevideo is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
             tmp_file.write(ladattuvideo.getvalue())
             temp_path = tmp_file.name
+            tmp_file.close()
             # Progress indicator
             progress_bar = st.progress(0)            
             #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
@@ -256,6 +268,7 @@ if ladattuvideo or youtubevideo is not None:
             time.sleep(1)
             analyzer = metadata(temp_path)
             result = analyzer.analyze()
+
             progress_bar.progress(20)
             #Inform user about whats happening
             status_container.markdown("""
@@ -278,19 +291,12 @@ if ladattuvideo or youtubevideo is not None:
                     geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                     st.session_state.results = geometry_results
                     st.session_state.file_path = ladattuvideo.name
-                    
+                  
             # Justification based on data
-            agent = VideoJustificationAgent("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")
-            response = agent.analyze({**result, **geometry_results})
+            agent = VideoJustificationAgent("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")
+            response = agent.analyze("This is a test prompt")
 
                 
-
-            
-            
-            st.markdown("### Video Preview")
-            st.video(ladattuvideo)
-            
-            
             try:
                 import cv2
                 cap = cv2.VideoCapture(temp_path)
@@ -302,6 +308,7 @@ if ladattuvideo or youtubevideo is not None:
         </div>
         """, unsafe_allow_html=True)
         
+                print("Video avataan")
                 if cap.isOpened():
                     fps = cap.get(cv2.CAP_PROP_FPS)
                     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -320,6 +327,7 @@ if ladattuvideo or youtubevideo is not None:
                     with col4:
                         st.metric("Total Frames", f"{frame_count:,}")
                     
+                    cap.release()
                     progress_bar.progress(100)
                     time.sleep(2) 
                     # Remove the progress bar
@@ -331,6 +339,8 @@ if ladattuvideo or youtubevideo is not None:
         """, unsafe_allow_html=True)
                     cap.release()
                 else:
+                    cap.release()
+                    progress_bar.empty()
                     st.markdown("""
                     <div class="status-warning">
                         <strong>⚠️ Limited Analysis</strong><br>
@@ -353,9 +363,23 @@ if ladattuvideo or youtubevideo is not None:
                 </div>
                 """, unsafe_allow_html=True)
             finally:
+                print("Releasing video capture")
+                cap.release()
                 # Clean up
-                if os.path.exists(temp_path):
+                if os.path.exists(temp_path) and cap.isOpened() == False:
+                    print("Deleting temp file")
                     os.unlink(temp_path)
+
+
+            
+            
+            st.markdown("### Video Preview")
+            print("Täälä nyt")
+            st.video(ladattuvideo)
+            
+            
+            
+            print("Justification response:", response)
             st.markdown("## Summary for video:")
             st.markdown(f"##### {response}")
             data = result["metadata"]
@@ -370,10 +394,10 @@ if ladattuvideo or youtubevideo is not None:
                     st.markdown(f"  - {val}: {v}")
                 st.markdown(f"Suspicion score: {score}")
                 st.markdown(f"Human anatomy anomaly detection results: ")
-                for key, value in geometry_results.items():
+                """for key, value in geometry_results.items():
                     val = key.replace("_"," ")
                     st.markdown(f"  - {val}: {value}")
-            
+            """
             #Possible news crosscheck
             with st.expander("### Perform news/search crosscheck"):
                 st.markdown("#### A news crosscheck can be performed to see if any news articles were published about the contents of the video. This can help to verify the authenticity of the video.")

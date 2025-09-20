@@ -97,49 +97,57 @@ class GeometryMapper:
 
         
         #loop through each frame 
-        while capture.isOpened():
-            global frame_anomaly
-            frame_anomaly = False
-            ret, frame = capture.read()
-            if not ret:
-                break
-            total_frames += 1
-            
-             #Calculate motion for frames
-            if total_frames % 5 == 0:  # Process every 5th frame for motion to reduce load
-                print("Calculating motion for frame:", total_frames)
-                motion_queue.put((total_frames, frame.copy()))
-           
-
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            #Get hands and analyze
-            GeometryMapper.process_hands(rgb, hands, finger_angles, frame)
-            # Process the pose of the frame
-            anomaly_multiplier = 0.1
-            GeometryMapper.process_pose(rgb,pose, pose_shoulder_widths,frame)
-            anomaly_multiplier = 0.1    
-            #Process face
-            GeometryMapper.process_face(rgb, face_mesh, face_distances, frame)
-            print("Anomaly score so far: ", anomaly_score)
-
-            if frame_anomaly:
-                # print(f"Frame {total_frames} was anomalous")
-                anomaly_frames += 1
-           
-            #Progress bar continuation
-            progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
-            progress = min(100, max(0, progress))
-            progress_bar.progress(progress)
-            # Display and save frames with anomalies
-            if display and frame_anomaly and total_frames % 20 == 0:
-                cv2.imshow("Anomalous Frame", frame)
-                # Press 'q' to skip/exit display early
-                if cv2.waitKey(0) & 0xFF == ord('q'):
+        try:     
+            while capture.isOpened():
+                global frame_anomaly
+                frame_anomaly = False
+                ret, frame = capture.read()
+                if not ret:
                     break
+                total_frames += 1
+                
+                #Calculate motion for frames
+                if total_frames % 5 == 0:  # Process every 5th frame for motion to reduce load
+                    print("Calculating motion for frame:", total_frames)
+                    motion_queue.put((total_frames, frame.copy()))
             
-        #Clean up
-        capture.release()
-        cv2.destroyAllWindows()
+
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                #Get hands and analyze
+                frame_to_save = frame.copy()
+                GeometryMapper.process_hands(rgb, hands, finger_angles, frame_to_save)
+                # Process the pose of the frame
+                anomaly_multiplier = 0.1
+                GeometryMapper.process_pose(rgb,pose, pose_shoulder_widths,frame_to_save)
+                anomaly_multiplier = 0.1    
+                #Process face
+                GeometryMapper.process_face(rgb, face_mesh, face_distances, frame_to_save)
+                print("Anomaly score so far: ", anomaly_score)
+
+                if frame_anomaly:
+                    # print(f"Frame {total_frames} was anomalous")
+                    anomaly_frames += 1
+            
+                #Progress bar continuation
+                progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
+                progress = min(100, max(0, progress))
+                progress_bar.progress(progress)
+                # Display and save frames with anomalies
+                if display and frame_anomaly and total_frames % 20 == 0:
+                    cv2.imshow("Anomalous Frame", frame)
+                    # Press 'q' to skip/exit display early
+                    if cv2.waitKey(0) & 0xFF == ord('q'):
+                        break
+        finally:      
+            #Clean up
+            capture.release()
+            cv2.destroyAllWindows()
+            print("Waiting for motion thread to finish...")
+            motion_queue.put(None)  # Sentinel to stop the thread
+            motion_thread.join()
+            motion_queue.queue.clear()  # removes all remaining frames
+
+        
         only_scores = [score for frame_id, score in motion_scores]
         avg_motion = np.mean(only_scores)
         anomaly_score = anomaly_score / total_frames 

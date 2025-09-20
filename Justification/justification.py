@@ -2,6 +2,7 @@
 from openai import OpenAI
 import os
 from serpapi import GoogleSearch
+import io
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -14,6 +15,7 @@ class VideoJustificationAgent:
     7. Be confident if the scores say likely real video you should mainly point it to be a real video (ofcourse mention that some anomalies were found but the overall analysis needs to match the results)
     8. Even though you understand the anomaly rating keep the explanation simple so that a non tech savvy person can understand it i.e dont mention the actual score, mentioning that some amount of frames contained anomalies is ok just dont mention the anomaly score itself just reference it.
     9. Motion score indicates how much motion is in the scene, higher scores indicate more motion, which in turn raises the amount of anomalies even in real videos. So always take motion score into account when justifying, i.e with enough movement even a real video can have quite many anomalies.  
+    10. Make your own decisions based on the data, dont just parrot back the data, but ofcourse dont make assumptions that arent present.
     """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
@@ -22,19 +24,30 @@ class VideoJustificationAgent:
 
 
     def _make_prompt(self, video_data: dict) -> str:
+        with open(os.path.join(os.getcwd(), f"../finger_anomaly_frame_.png"), 'rb') as f:
+            finger_frame = f.read()
+        with open(os.path.join(os.getcwd(), f"../limb_anomaly_frame_.png"),'rb') as f:
+            limb_frame = f.read()
+        with open(os.path.join(os.getcwd(), f"../face_anomaly_frame_.png"), 'rb') as f:
+            face_frame = f.read()
+        ready_frames = {
+            "finger_anomaly_frame": io.BytesIO(finger_frame),
+            "limb_anomaly_frame": io.BytesIO(limb_frame),
+            "face_anomaly_frame": io.BytesIO(face_frame),
+        }
         """Create justification based on video_results"""
         return f"""
 You are a professional synthetic video analyst.
-Your job is to review the following video data and 4frames from the video also provided (three of them contain an anomaly one doesnt). After reviewing provide a human-like justification
+Your job is to review the following video data and 4 frames from the video (three of them contain an anomaly one doesnt). After reviewing provide a human-like justification
 about whether the video is synthetic or not. Focus on generalization a non tech savvy person needs to understand the justification, without needing to understand our scores in depth (ofcourse you can mention that score is a factor).
-Make the justification max 6 senteces
+Make the justification max 6 senteces. IF one of the frames is not loading, just ignore it and continue with the rest, the absense of frames shouldnt stop you from giving a justification.
 
 Guidelines to consider:
 {self.GUIDELINES}
 
-Video Data:
+Video Data and frames:
 {video_data}
-
+{ready_frames}
 Provide your answer as a concise, human-readable explanation, including which anomalies
 led to your conclusion. 
 """
