@@ -237,7 +237,7 @@ class GeometryMapper:
                     print(f"Face anomaly detected at frame: {total_frames}!")
                     if face_distance_anomaly_frames == 1:
                         GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks[0], GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
-                        save_path = os.path.join(os.getcwd(), f"face_anomaly_frame_.png")
+                        save_path = os.path.join(os.getcwd(), f"../face_anomaly_frame_.png")
                         cv2.imwrite(save_path, frame)        
                         print("frame saved at: ", save_path)
                 else:
@@ -275,7 +275,7 @@ class GeometryMapper:
                     arm_length_ratio_anomaly_frames += 1
                     if arm_length_ratio_anomaly_frames == 1:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
-                            save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
+                            save_path = os.path.join(os.getcwd(), f"../limb_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)   
                             print("frame saved at: ", save_path)     
                 else:
@@ -303,7 +303,7 @@ class GeometryMapper:
                     shoulder_to_shoulder_width_anomaly_frames += 1
                     if shoulder_to_shoulder_width_anomaly_frames == 1:
                             #GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
-                            save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
+                            save_path = os.path.join(os.getcwd(), f"../limb_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
                             
                 else:
@@ -348,7 +348,7 @@ class GeometryMapper:
                         finger_angle_anomaly_frames += 1
                         if finger_angle_anomaly_frames == 1:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
-                            save_path = os.path.join(os.getcwd(), f"finger_anomaly_frame_.png")
+                            save_path = os.path.join(os.getcwd(), f"../finger_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
                             print("frame saved at: ", save_path) 
                     else :
