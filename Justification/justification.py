@@ -194,7 +194,7 @@ motion score: 1.0949195623397827
 
     asked_key = input("Tell your API KEY: ")
     agent = VideoJustificationAgent(api_key=asked_key)
-    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"]))
+    print(agent.search_news(["Foo Fighters recent interviews Dave Grohl"], ""))
     
 
 if __name__ == "__main__":
