@@ -167,6 +167,7 @@ class GeometryMapper:
             "motion_score": avg_motion
         }
     
+    #Motion calculation worker thread
     def motion_worker():
         global prev_gray_motion
         while True:
