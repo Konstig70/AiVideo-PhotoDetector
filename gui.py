@@ -127,8 +127,8 @@ st.markdown("""
 # Professional header
 st.markdown("""
 <div class="main-header">
-    <h1>🛡️ AI video detector</h1>
-    <p>Get reliable video authenticity scores by combining anatomy, metadata, and motion analysis, with a clear and easy to understand verdict. Optional technical breakdown is also available.</p>
+    <h1>🛡️ Catch lies, one frame at a time</h1>
+    <p>Is this video real? Our AI analyzes anatomy, metadata, motion, and even news context to give you a best possible trust. Optional report with visual proof is also available if you want the details.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -140,7 +140,7 @@ import os
 col3, col1, col2 = st.columns([3, 2, 1])
 
 with col3:
-    st.markdown("### Paste YouTube link")
+    st.markdown("### ▶️ Paste YouTube link")
 
     youtube_link = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=example")
     youtubevideo = None
@@ -203,8 +203,8 @@ with col2:
     <div class="info-card">
         <h4>Quick guide</h4>
         <ol>
-            <li>Upload your video file</li>
-            <li>Wait for automatic analysis</li>
+            <li>upload your video file or provide a direct YouTube link to your video</li>
+            <li>Wait for automatic analysis. This may take while depending on amount of frames in your video.</li>
             <li>Review detailed results</li>
             <li>Download report (optional)</li>
         </ol>
@@ -378,7 +378,7 @@ if ladattuvideo or youtubevideo is not None:
             score = result["metadata_anomaly_score"]
             
             # Technical details section
-            with st.expander("### 📋 Technical Analysis (click to expand)"):
+            with st.expander("### 📋 Technical Analysis (Click to expand)"):
                 st.markdown(" #### Here is all of the data that our algorithms were able to detect. The anomaly score is our own scoring system that is calculated by combining different data values and different detected anomalies with some anomalies weigthed more than others (which can be seen below):")
                 st.markdown(f"Video metadata:")
                 for k,v in data.items():
@@ -390,12 +390,9 @@ if ladattuvideo or youtubevideo is not None:
                     val = key.replace("_"," ")
                     st.markdown(f"  - {val}: {value}")
             #Possible news crosscheck
-            with st.expander("### Perform news/search crosscheck"):
+            with st.expander("### Perform news/search crosscheck (Click to expand)"):
                 st.markdown("#### A news crosscheck can be performed to see if any news articles were published about the contents of the video. This can help to verify the authenticity of the video.")
-                st.markdown("#####  This is an experimental feature that is still in alpha phase. It uses LLM to generate search queries based on the contents of the video and then searches news articles based on those queries. Finally it summarizes the results and tells if any of the articles were relevant to the contents of the video. Please note that this feature is not always accurate and should be used with caution.")
-                if st.button("Try our experimental video context detection system by clicking here"):
-                    print("CrossCheck!")
-                st.markdown("##### You can also perform a news crosscheck by simply describing the contents of video below, this might work better than the automatic context detection, how ever keep in mind that you need to present sufficiently relatable information for the video.")
+                st.markdown("##### Perform a news crosscheck by simply describing the contents of video below. Keep in mind that you need to present sufficiently relatable information for the video.")
                 input = st.text_input("Please describe the videos contents:")
                 if st.button("submit"):
                     results = agent.perform_news_cross_check(input)
