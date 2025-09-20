@@ -128,7 +128,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <h1>🛡️ Catch lies, one frame at a time</h1>
-    <p>Is this video real? Our AI analyzes anatomy, metadata, motion, and even news context to give you a best possible trust. Optional report with visual proof is also available if you want the details.</p>
+    <p>Is this video real? Our AI-Agent analyzes anatomy, metadata, motion, and even news context to give you a best possible trust. Optional report with visual proof is also available if you want the details.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -290,7 +290,7 @@ if ladattuvideo or youtubevideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                   
             # Justification based on data
-            agent = VideoJustificationAgent("")
+            agent = VideoJustificationAgent("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")
             response = agent.analyze({**result, **anatomy_results})
             period_index = response.find('.')
             if period_index != -1:
@@ -408,8 +408,8 @@ if ladattuvideo or youtubevideo is not None:
             
             with st.expander("### Download authenticity report"):
                 st.markdown("#### Authenticity report is created by using the data created from analysis")
-                if st.button("Download PDF report from your video"):
-                    pdf_creator = PDFGenerator(data, anatomy_results, score)
+                if st.button("Create PDF report from your video"):
+                    pdf_creator = PDFGenerator(data, anatomy_results, score, remainder, beginning_phrase)
                     pdf_file = pdf_creator.generate_pdf()
                     st.download_button(
                         label="Download report PDF",

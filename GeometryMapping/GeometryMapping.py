@@ -129,11 +129,9 @@ class GeometryMapper:
                 if frame_anomaly:
                     # print(f"Frame {total_frames} was anomalous")
                     anomaly_frames += 1
-                print(f"Frame anomalus status: {frame_anomaly}, previous frame anomalus status: {previous_frame_anomalous}")
                 if not frame_anomaly and total_frames % 20 == 0:
                     save_path = os.path.join(os.getcwd(), f"../no_anomaly_frame_.png")
                     cv2.imwrite(save_path, frame)
-                    print("No anomaly frame saved at: ", save_path)
                 #Progress bar continuation
                 progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
                 progress = min(100, max(0, progress))
@@ -253,7 +251,6 @@ class GeometryMapper:
                         GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks[0], GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
                         save_path = os.path.join(os.getcwd(), f"../face_anomaly_frame_.png")
                         cv2.imwrite(save_path, frame)        
-                        print("frame saved at: ", save_path)
                 else:
                     previous_frame_anomalous = False
                     anomaly_multiplier = 0.1
@@ -290,8 +287,7 @@ class GeometryMapper:
                     if arm_length_ratio_anomaly_frames == 1:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"../limb_anomaly_frame_.png")
-                            cv2.imwrite(save_path, frame)   
-                            print("frame saved at: ", save_path)     
+                            cv2.imwrite(save_path, frame)     
                 else:
                     #Frame was not anomalous so we reset multiplier 
                     anomaly_multiplier = 0.1
@@ -364,7 +360,6 @@ class GeometryMapper:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"../finger_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
-                            print("frame saved at: ", save_path) 
                     else :
                         #Frame was not anomalous so multiplier zeroed
                         anomaly_multiplier = 0

@@ -3,6 +3,9 @@ from openai import OpenAI
 import os
 from serpapi import GoogleSearch
 import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -84,11 +87,11 @@ led to your conclusion.
 
     def perform_news_cross_check(self, context):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries)
+        results = self.search_news(queries, input)
         summary = self.analyze_news_relevance(context, results) 
         return summary
     
-    def search_news(self, queries):
+    def search_news(self, queries, input):
         """
         Perform a Google News search using SerpApi and return organic_results.
 
@@ -102,7 +105,7 @@ led to your conclusion.
         params = {
             "engine": "google",
             "q": queries,
-            "api_key": ""
+            "api_key": "ec4068df92922e533be0aa03e6fe72fc857af0167801691b61fac9bec3085ddb"
         }
 
         search = GoogleSearch(params)
@@ -120,8 +123,6 @@ led to your conclusion.
             self.messages = [{"role": "system", "content": "You are an AI fact-checker and expert in evaluating video content credibility."}]
 
         # Format articles into text
-        articles_text = "\n".join([f"- {a['title']}: {a['description']}" for a in articles])
-        print(articles_text)
 
         # Build prompt
         prompt = f"""
@@ -133,11 +134,12 @@ led to your conclusion.
         - Focus on whether evidence or lack thereof raises concerns for the video's authenticity.
         - Write the answer as a scientific report (no "we" or "I"). Max 6 sentences.
         - If no relevant articles are found, state that the news crosscheck did not provide anything that found help either case.
-        
+
+
         Video context:
         {video_context}
         Search query results:
-        {articles_text}
+        {articles}
         
         Answer in a concise summary.
         """
@@ -164,7 +166,7 @@ led to your conclusion.
         Uses LLM to generate search queries based on extracted video content
         """
         prompt = f"""
-        Generate 5 concise search queries to fact-check a video.
+        Generate 5 concise search queries to fact-check a video. If the context mentions or is in another language you should provide some queries in the mentioned/used language. For example if the context mentions finland or finnish people have atleast two queries in finnish
         Video context:
         {video_context}
         Only return queries as a list of strings dont number them.
@@ -183,35 +185,120 @@ led to your conclusion.
         return queries
     
 
-from io import BytesIO
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import simpleSplit
+from io import BytesIO
+import os
+from reportlab.lib.utils import ImageReader
 
 class PDFGenerator:
-    def __init__(self, data, geometry_results, score):
+    def __init__(self, data, geometry_results, score, response, beginning):
         self.data = data
         self.geometry_results = geometry_results
         self.score = score
+        self.response = response
+        self.beginning = beginning
+        self.image_paths = {
+            "finger_anomaly_frame": "../finger_anomaly_frame_.png",
+            "limb_anomaly_frame": "../limb_anomaly_frame_.png",
+            "face_anomaly_frame": "../face_anomaly_frame_.png",
+            "no_anomaly_frame": "../no_anomaly_frame_.png"
+        }
+        # Optional descriptions for each image
+        self.image_descriptions = {
+            "finger_anomaly_frame": "Detected finger anomaly highlighted in red.",
+            "limb_anomaly_frame": "Detected limb anomaly highlighted in red.",
+            "face_anomaly_frame": "Detected face anomaly highlighted in red.",
+            "no_anomaly_frame": "No anomalies detected in this scan."
+        }
+
+    def _draw_wrapped_text(self, c, text, x, y, max_width, font_name="Helvetica", font_size=12, leading=14):
+        lines = simpleSplit(text, font_name, font_size, max_width)
+        for line in lines:
+            if y < 50:  # bottom margin
+                c.showPage()
+                y = A4[1] - 50
+                c.setFont(font_name, font_size)
+            c.drawString(x, y, line)
+            y -= leading
+        return y
 
     def generate_pdf(self):
         buffer = BytesIO()
-        c = canvas.Canvas(buffer)
-        c.drawString(50, 800, f"Suspicion score: {self.score}")
-        y = 780
-        c.drawString(50, y, "Data:")
-        y -= 20
-        for k, v in self.data.items():
-            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
-            y -= 20
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        # Add score
+        c.setFont("Helvetica-Bold", 14)
+        y = height - 50
+        y = self._draw_wrapped_text(c, f"Verdict: {self.beginning}", 50, y, max_width=width-100, font_name="Helvetica-Bold", font_size=14, leading=18)
+
+        # Add data
         y -= 10
-        c.drawString(50, y, "Human anatomy anomaly detection results:")
-        y -= 20
+        c.setFont("Helvetica", 12)
+        y = self._draw_wrapped_text(c, "Data:", 50, y, max_width=width-100, font_size=12)
+        for k, v in self.data.items():
+            y = self._draw_wrapped_text(c, f"- {k.replace('_', ' ')}: {v}", 70, y, max_width=width-100, font_size=12)
+
+        # Add geometry results
+        y -= 10
+        y = self._draw_wrapped_text(c, "Human anatomy anomaly detection results:", 50, y, max_width=width-100, font_size=12)
         for k, v in self.geometry_results.items():
-            c.drawString(70, y, f"- {k.replace('_', ' ')}: {v}")
-            y -= 20
+            y = self._draw_wrapped_text(c, f"- {k.replace('_', ' ')}: {v}", 70, y, max_width=width-100, font_size=12)
+
+        # Add response
+        y -= 10
+        y = self._draw_wrapped_text(c, "Analysis:", 50, y, max_width=width-100, font_size=12)
+        y = self._draw_wrapped_text(c, self.response, 70, y, max_width=width-100, font_size=12)
+
+        y -= 10
+        y = self._draw_wrapped_text(c, "Checked by: S&K-software analyzer", 50, y, max_width=width-100, font_size=12)
+        # Add images in 2x2 grid safely with descriptions
+        img_width = 250
+        img_height = 180
+        margin_x = 50
+        spacing_x = 20
+        spacing_y = 40  # extra space for caption
+        images_per_row = 2
+        x_start = margin_x
+        y_start = y - img_height
+
+        idx = 0
+        for img_name, img_path in self.image_paths.items():
+            row = idx // images_per_row
+            col = idx % images_per_row
+            x_pos = x_start + col * (img_width + spacing_x)
+            y_pos = y_start - row * (img_height + spacing_y)
+
+            # Start new page if image would overflow
+            if y_pos < 100:
+                c.showPage()
+                y_pos = height - img_height - 50
+
+            # Draw image
+            if os.path.exists(img_path):
+                try:
+                    img = ImageReader(img_path)
+                    c.drawImage(img, x_pos, y_pos, width=img_width, height=img_height)
+                except Exception:
+                    c.drawString(x_pos, y_pos + img_height / 2, f"Failed to load {img_name}")
+            else:
+                c.drawString(x_pos, y_pos + img_height / 2, f"Image {img_name} not found")
+
+            # Draw description under image
+            description = self.image_descriptions.get(img_name, "")
+            c.setFont("Helvetica-Oblique", 10)
+            self._draw_wrapped_text(c, description, x_pos, y_pos - 15, max_width=img_width, font_size=10, leading=12)
+
+            idx += 1
+
         c.showPage()
         c.save()
         buffer.seek(0)
         return buffer
+
+
 
 
 def main():
