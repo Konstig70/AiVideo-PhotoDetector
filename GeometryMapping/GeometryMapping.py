@@ -236,7 +236,7 @@ class GeometryMapper:
                     face_distance_anomaly_frames += 1
                     print(f"Face anomaly detected at frame: {total_frames}!")
                     if face_distance_anomaly_frames == 1:
-                        GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks, GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
+                        GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_face_landmarks[0], GeometryMapper.mp_face_mesh.FACEMESH_TESSELATION)
                         save_path = os.path.join(os.getcwd(), f"face_anomaly_frame_.png")
                         cv2.imwrite(save_path, frame)        
                         print("frame saved at: ", save_path)
@@ -276,7 +276,8 @@ class GeometryMapper:
                     if arm_length_ratio_anomaly_frames or shoulder_to_shoulder_width_anomaly_frames == 1:
                             GeometryMapper.mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"limb_anomaly_frame_.png")
-                            cv2.imwrite(save_path, frame)        
+                            cv2.imwrite(save_path, frame)   
+                            print("frame saved at: ", save_path)     
                 else:
                     #Frame was not anomalous so we reset multiplier 
                     anomaly_multiplier = 0.1
@@ -346,10 +347,10 @@ class GeometryMapper:
                         print(f"Finger curl anomaly detected at frame {total_frames}!")
                         finger_angle_anomaly_frames += 1
                         if finger_angle_anomaly_frames == 1:
-                            GeometryMapper.mp_drawing.draw_landmarks(frame, results.multi_hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
+                            GeometryMapper.mp_drawing.draw_landmarks(frame, hand_landmarks, GeometryMapper.mp_hands.HAND_CONNECTIONS)
                             save_path = os.path.join(os.getcwd(), f"finger_anomaly_frame_.png")
                             cv2.imwrite(save_path, frame)
-                        print("frame saved at: ", save_path) 
+                            print("frame saved at: ", save_path) 
                     else :
                         #Frame was not anomalous so multiplier zeroed
                         anomaly_multiplier = 0
