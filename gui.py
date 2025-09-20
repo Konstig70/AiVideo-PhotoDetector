@@ -280,7 +280,7 @@ if ladattuvideo or youtubevideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                     
             # Justification based on data
-            agent = VideoJustificationAgent("")
+            agent = VideoJustificationAgent("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")
             response = agent.analyze({**result, **geometry_results})
 
                 
@@ -397,11 +397,9 @@ if ladattuvideo or youtubevideo is not None:
                         file_name="AuthenticityReport.pdf",
                         mime="application/pdf"
                     )
-        import traceback
 
     except Exception as e:
         print(e)
-        traceback.print_exc
         st.markdown(f"""
         <div class="status-error">
             <strong>❌ Processing Error</strong><br>
