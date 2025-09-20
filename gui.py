@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import time
 from pytube import YouTube
+import yt_dlp
+from io import BytesIO
 
 # Initialize session state
 if "results" not in st.session_state:
@@ -128,13 +130,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Main content area
+import streamlit as st
+import yt_dlp
+import os
+
 col3, col1, col2 = st.columns([3, 2, 1])
 
 with col3:
     st.markdown("### Paste YouTube link")
     youtube_link = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=example")
-    if st.button("Analyze video from YouTube"):
-        if youtube_link:
+    youtubevideo = None
+    if youtube_link:
+        # Ensure URL starts with https://
+        url = youtube_link if youtube_link.startswith("https://") else "https://" + youtube_link
+
+        if st.button("Analyze video from YouTube"):
             st.markdown(f"""
             <div class="status-success">
                 <strong>✅ YouTube Analysis Initiated</strong><br>
@@ -142,26 +152,31 @@ with col3:
             </div>
             """, unsafe_allow_html=True)
 
-        try:
-            # Download YouTube video using pytube
-            yt = YouTube(youtube_link)
-            stream = yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc().first()
-            
-            download_path = stream.download(output_path="downloads", filename="youtube_video.mp4")
-            
-            # Confirmation
-            st.success(f"Video downloaded successfully: {yt.title}")
+            os.makedirs("downloads", exist_ok=True)
 
-            time.sleep(2)
-            st.markdown(f"""
-            <div class="status-success">
-                <strong>✅ Analysis Complete</strong><br>
-                The video from the provided YouTube link has been analyzed successfully.
-            </div>
-            """, unsafe_allow_html=True)
+            ydl_opts = {
+                "outtmpl": "downloads/youtube_video.%(ext)s",
+                "format": "mp4",
+                "quiet": True,
+            }
 
-        except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    video_path = ydl.prepare_filename(info)
+                    st.success(f"✅ Video downloaded successfully: {video_path}")
+
+                    # Read video as bytes so it can be fed to your file uploader code
+                    with open(video_path, "rb") as f:
+                        video_bytes = f.read()
+                        youtubevideo = BytesIO(video_bytes)
+                        youtubevideo.name = os.path.basename(video_path)  # mimic UploadedFile.name
+
+                    # Now you can pass ladattuvideo to your existing processing functions
+                    # e.g., analyze_video(ladattuvideo)
+
+            except Exception as e:
+                st.error(f"❌ Error downloading video: {e}")
 
 with col1:
     st.markdown("### 📁 Upload Video File")
@@ -189,14 +204,17 @@ with col2:
     """, unsafe_allow_html=True)
 
 # Video processing with professional error handling
-if ladattuvideo is not None:
+if ladattuvideo or youtubevideo is not None:
     try:
+        if youtubevideo is not None:
+            ladattuvideo = youtubevideo
         # File information display
-        file_details = {
+        else:
+            file_details = {
             "filename": ladattuvideo.name,
             "filetype": ladattuvideo.type,
             "filesize": ladattuvideo.size
-        }
+            }
         
         # Professional status display
         status_container = st.empty()
@@ -208,57 +226,47 @@ if ladattuvideo is not None:
         """, unsafe_allow_html=True)
         
         # File details in professional format
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("File Name", file_details['filename'])
-        with col2:
-            st.metric("File Type", file_details['filetype'])
-        with col3:
-            st.metric("File Size", f"{file_details['filesize']/1024/1024:.2f} MB")
-        
-        # File size validation
-        max_size = 100 * 1024 * 1024  # 100MB
-        if file_details['filesize'] > max_size:
-            st.markdown("""
-            <div class="status-error">
-                <strong>❌ File Too Large</strong><br>
-                Maximum allowed size is 100MB. Please compress your video or upload a smaller file.
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
-                tmp_file.write(ladattuvideo.getvalue())
-                temp_path = tmp_file.name
-                # Progress indicator
-                progress_bar = st.progress(0)
-                
-                #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
-                from MetaDataScrutiny.metadataanalyzer import metadata
-                from GeometryMapping.GeometryMapping import GeometryMapper
-                from Justification.justification import VideoJustificationAgent
-                from Justification.justification import PDFGenerator
-                #Inform user about whats happening
-                status_container.markdown("""
+        if youtubevideo is None:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("File Name", file_details['filename'])
+            with col2:
+                st.metric("File Type", file_details['filetype'])
+            with col3:
+                st.metric("File Size", f"{file_details['filesize']/1024/1024:.2f} MB")
+            
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(ladattuvideo.name).suffix) as tmp_file:
+            tmp_file.write(ladattuvideo.getvalue())
+            temp_path = tmp_file.name
+            # Progress indicator
+            progress_bar = st.progress(0)            
+            #<-------------------------DO ALL ANALYSIS HERE AND MAKE SURE TO RETURN ALL ANALYSIS RESULT DATA------------------------->
+            from MetaDataScrutiny.metadataanalyzer import metadata
+            from GeometryMapping.GeometryMapping import GeometryMapper
+            from Justification.justification import VideoJustificationAgent
+            from Justification.justification import PDFGenerator
+            #Inform user about whats happening
+            status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
             Performing metadata analysis...
         </div>
         """, unsafe_allow_html=True)
-                time.sleep(1)
-                analyzer = metadata(temp_path)
-                result = analyzer.analyze()
-                progress_bar.progress(20)
-                #Inform user about whats happening
-                status_container.markdown("""
+            time.sleep(1)
+            analyzer = metadata(temp_path)
+            result = analyzer.analyze()
+            progress_bar.progress(20)
+            #Inform user about whats happening
+            status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
             Performing geometrical and human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
-                print(ladattuvideo.name)
-                print(st.session_state.file_path)
-                if st.session_state.file_path == ladattuvideo.name:
+            print(ladattuvideo.name)
+            print(st.session_state.file_path)
+            if st.session_state.file_path == ladattuvideo.name:
                     if st.session_state.results:     
                         geometry_results = st.session_state.results
                         st.session_state.file_path = ladattuvideo.name
@@ -266,14 +274,14 @@ if ladattuvideo is not None:
                         geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                         st.session_state.results = geometry_results
                         st.session_state.file_path = ladattuvideo.name
-                else:
+            else:
                     geometry_results = GeometryMapper.analyze_video(temp_path, False, progress_bar, 25)
                     st.session_state.results = geometry_results
                     st.session_state.file_path = ladattuvideo.name
                     
-                # more analysis
-                agent = VideoJustificationAgent("")
-                response = agent.analyze({**result, **geometry_results})
+            # Justification based on data
+            agent = VideoJustificationAgent("")
+            response = agent.analyze({**result, **geometry_results})
 
                 
 
@@ -389,9 +397,11 @@ if ladattuvideo is not None:
                         file_name="AuthenticityReport.pdf",
                         mime="application/pdf"
                     )
-
+        import traceback
 
     except Exception as e:
+        print(e)
+        traceback.print_exc
         st.markdown(f"""
         <div class="status-error">
             <strong>❌ Processing Error</strong><br>
