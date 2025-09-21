@@ -290,7 +290,7 @@ if ladattuvideo or youtubevideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                   
             # Justification based on data
-            agent = VideoJustificationAgent("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")
+            agent = VideoJustificationAgent("")
             response = agent.analyze({**result, **anatomy_results})
             period_index = response.find('.')
             if period_index != -1:

@@ -105,7 +105,7 @@ led to your conclusion.
         params = {
             "engine": "google",
             "q": queries,
-            "api_key": "ec4068df92922e533be0aa03e6fe72fc857af0167801691b61fac9bec3085ddb"
+            "api_key": ""
         }
 
         search = GoogleSearch(params)
