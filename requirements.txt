@@ -1,9 +1,10 @@
-openai
 opencv-python-headless==4.12.0.88
-mediapipe
-google-search-results
+mediapipe==0.10.14
 streamlit
+openai
+google-generativeai
 yt_dlp
 pymediainfo
 reportlab
-google-generativeai
+google-search-results
+
