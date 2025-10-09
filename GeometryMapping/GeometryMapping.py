@@ -136,12 +136,7 @@ class GeometryMapper:
                 progress = 25 + int((total_frames / total_frames_count) * 65)  # 25 -> 90
                 progress = min(100, max(0, progress))
                 progress_bar.progress(progress)
-                # Display and save frames with anomalies
-                if display and frame_anomaly and total_frames % 20 == 0:
-                    cv2.imshow("Anomalous Frame", frame)
-                    # Press 'q' to skip/exit display early
-                    if cv2.waitKey(0) & 0xFF == ord('q'):
-                        break
+                
         finally:      
             #Clean up
             capture.release()
