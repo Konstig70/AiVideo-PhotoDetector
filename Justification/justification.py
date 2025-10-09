@@ -13,7 +13,7 @@ from reportlab.lib.utils import ImageReader
 class VideoJustificationAgent:
     GUIDELINES = """
     1. Videos with unnatural geometry in faces or bodies are likely synthetic.
-    2. Metadata inconsistencies (e.g., impossible timestamps or missings in metadata) increase suspicion.
+    2. Metadata inconsistencies (e.g., impossible timestamps or missings in metadata) increase suspicion. Other good things to look for are if the device info shows the video coming from a camera/phone or does it come from an editing software, etc. While this doesnt always mean that the video is synthethic you should point this out
     3. Motion anomalies (e.g., jitter, unnatural physics) are strong indicators.
     4. Give justification even if the video is likely real.
     5. The anatomy_anomaly_rating score corresponds with these values Anomaly score < 0.025: Likely a real video; 0.025 ≤ Anomaly score < 0.050: Probably a real video but some minor anomalies were detected; 0.05 ≤ Anomaly score < 0.075: Most possibly a low quality or highly edited video with some synthetic tampering, some anomalies were detected; 0.075 ≤ Anomaly score ≤ 0.1: Probably synthetic video, quite many anomalies; Anomaly score > 0.1: Highly suspicious, most likely a synthetic video, many anomalies detected. 
