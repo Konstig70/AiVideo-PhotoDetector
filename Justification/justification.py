@@ -85,13 +85,13 @@ led to your conclusion.
         
         return reply
 
-    def perform_news_cross_check(self, context):
+    def perform_news_cross_check(self, context, api_key):
         queries = self.generate_search_queries(context)
-        results = self.search_news(queries, input)
+        results = self.search_news(queries, api_key)
         summary = self.analyze_news_relevance(context, results) 
         return summary
     
-    def search_news(self, queries, input):
+    def search_news(self, queries, key):
         """
         Perform a Google News search using SerpApi and return organic_results.
 
@@ -105,7 +105,7 @@ led to your conclusion.
         params = {
             "engine": "google",
             "q": queries,
-            "api_key": ""
+            "api_key": key
         }
 
         search = GoogleSearch(params)

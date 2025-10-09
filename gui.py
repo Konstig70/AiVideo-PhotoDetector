@@ -290,7 +290,8 @@ if ladattuvideo or youtubevideo is not None:
                     st.session_state.file_path = ladattuvideo.name
                   
             # Justification based on data
-            agent = VideoJustificationAgent("")
+            openai_api_key = st.secrets["openai"]["api_key"]
+            agent = VideoJustificationAgent(openai_api_key)
             response = agent.analyze({**result, **anatomy_results})
             period_index = response.find('.')
             if period_index != -1:
@@ -400,7 +401,7 @@ if ladattuvideo or youtubevideo is not None:
                 st.markdown("##### Perform a news crosscheck by simply describing the contents of video below. Keep in mind that you need to present sufficiently relatable information for the video.")
                 input = st.text_input("Please describe the videos contents:")
                 if st.button("submit"):
-                    results = agent.perform_news_cross_check(input)
+                    results = agent.perform_news_cross_check(input, st.secrets["google_search"]["key"])
                     st.markdown("### Here is the results of the news crosscheck")
                     st.markdown(f"#### {results}")    
             
