@@ -68,20 +68,32 @@ led to your conclusion.
     def analyze(self, video_data: dict) -> str:
         prompt = self._make_prompt(video_data)
 
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+        # Append user prompt to conversation memory
+        self.messages.append({"role": "user", "content": prompt})
+
+        # Convert conversation into Gemini 'contents' format
+        contents = []
+        for msg in self.messages:
+            contents.append({
+                "role": msg["role"],
+                "parts": [{"text": msg["content"]}]
+            })
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
         headers = {
             "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key
         }
         payload = {
-            "prompt": {
-                "messages": [{"author": "user", "content": {"text": prompt}}]
-            }
+            "contents": contents
         }
 
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
         result = response.json()
-        reply = result["candidates"][0]["content"][0]["text"] 
+
+        # Extract assistant reply
+        reply = result["candidates"][0]["content"][0]["text"]
         self.messages.append({"role": "assistant", "content": reply})
         return reply
         
@@ -148,15 +160,8 @@ led to your conclusion.
         # Append user prompt to messages
         self.messages.append({"role": "user", "content": prompt})
 
-        # Send the full conversation to the model
-        response = self.client.chat.completions.create(
-            model="gpt-4",
-            messages=self.messages,
-            temperature=0
-        )
-
-        # Get assistant reply and append it to conversation
-        reply = response.choices[0].message.content
+        reply = ""
+        
         self.messages.append({"role": "assistant", "content": reply})
 
         return reply
