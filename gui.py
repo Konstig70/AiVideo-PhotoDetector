@@ -5,7 +5,6 @@ from pathlib import Path
 import time
 import yt_dlp
 from io import BytesIO
-import psutil
 import requests
                     
 
