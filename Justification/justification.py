@@ -31,22 +31,6 @@ class VideoJustificationAgent:
 
 
     def _make_prompt(self, video_data: dict) -> str:
-        frame_files = {
-            "finger_anomaly_frame": "../finger_anomaly_frame_.png",
-            "limb_anomaly_frame": "../limb_anomaly_frame_.png",
-            "face_anomaly_frame": "../face_anomaly_frame_.png",
-            "no_anomaly_frame": "../no_anomaly_frame_.png"
-        }
-
-        ready_frames = {}
-
-        for key, relative_path in frame_files.items():
-            full_path = os.path.join(os.getcwd(), relative_path)
-            if os.path.isfile(full_path):
-                with open(full_path, 'rb') as f:
-                    ready_frames[key] = io.BytesIO(f.read())
-            else:
-                print(f"Warning: {full_path} not found, skipping {key}")
         """Create justification based on video_results"""
         return f"""
 You are a professional synthetic video analyst.
@@ -60,7 +44,6 @@ Guidelines to consider:
 
 Video Data and frames:
 {video_data}
-{ready_frames}
 Provide your answer as a concise, human-readable explanation, including which anomalies
 led to your conclusion. 
 """

@@ -170,7 +170,7 @@ class GeometryMapper:
             "arm_length_ratio_anomaly_frames ": arm_length_ratio_anomaly_frames,
             "shoulder_to_shoulder_width_anomaly_frames": shoulder_to_shoulder_width_anomaly_frames,
             "face_distance_anomaly_frames": face_distance_anomaly_frames,
-            "motion_score": avg_motion
+            "motion_score": float(avg_motion)
         }
     
     #Motion calculation worker thread
