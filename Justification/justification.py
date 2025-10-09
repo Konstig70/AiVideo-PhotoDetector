@@ -82,7 +82,7 @@ led to your conclusion.
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
         headers = {
             "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key
+            "x-goog-api-key": self.apiKey
         }
         payload = {
             "contents": contents
