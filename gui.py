@@ -139,7 +139,7 @@ col3, col1, col2 = st.columns([3, 2, 1])
 
 with col3:
     st.markdown("### ▶️ Paste YouTube link")
-
+    st.markdown("*You can also download content straight from youtube*")
     youtube_link = st.text_input("YouTube URL", placeholder="https://www.youtube.com/watch?v=example")
     youtubevideo = None
 
