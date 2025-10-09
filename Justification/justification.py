@@ -84,6 +84,7 @@ led to your conclusion.
             "Content-Type": "application/json",
             "x-goog-api-key": self.apiKey
         }
+        print(contents)
         payload = {
             "contents": contents
         }
