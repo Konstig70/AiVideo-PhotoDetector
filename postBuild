@@ -1,0 +1,5 @@
+# postBuild (at root of repo)
+#!/bin/bash
+pip uninstall -y opencv-contrib-python opencv-python
+pip install --no-cache-dir opencv-contrib-python-headless==4.12.0.88
+
