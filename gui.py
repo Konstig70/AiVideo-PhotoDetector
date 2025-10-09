@@ -3,7 +3,6 @@ import tempfile
 import os
 from pathlib import Path
 import time
-from pytube import YouTube
 import yt_dlp
 from io import BytesIO
 import psutil

@@ -68,9 +68,8 @@ led to your conclusion.
     def analyze(self, video_data: dict) -> str:
         prompt = self._make_prompt(video_data)
 
-        url = "https://api.generativeai.googleapis.com/v1beta/models/{}/:generateMessage".format(self.model)
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
         headers = {
-            "Authorization": f"Bearer {self.apiKey}",
             "Content-Type": "application/json",
         }
         payload = {
