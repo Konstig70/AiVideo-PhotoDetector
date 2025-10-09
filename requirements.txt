@@ -3,6 +3,7 @@ opencv-python
 mediapipe
 google-search-results
 streamlit
-pytube
+yt_dlp
 pymediainfo
 reportlab
+google-generativeai

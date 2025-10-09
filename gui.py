@@ -188,7 +188,7 @@ with col3:
 
 with col1:
     st.markdown("### 📁 Upload Video File")
-    st.markdown("*Drag and drop or click to browse for suspicious video content*")
+    st.markdown("*Drag and drop or click to browse to upload suspicious video content*")
     
     # Video uploader
     ladattuvideo = st.file_uploader(
@@ -271,7 +271,7 @@ if ladattuvideo or youtubevideo is not None:
             status_container.markdown("""
         <div class="status-success">
             <strong>✅ File Upload Successful</strong><br>
-            Performing geometrical and human anatomy anomaly detection, this may take some time...
+            Performing human anatomy anomaly detection, this may take some time...
         </div>
         """, unsafe_allow_html=True)
             print(ladattuvideo.name)

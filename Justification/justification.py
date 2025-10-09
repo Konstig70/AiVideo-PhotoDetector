@@ -1,11 +1,14 @@
 #Utilizes openAI API key to create justification based on analysis before.
 from openai import OpenAI
 import os
+import requests
 from serpapi import GoogleSearch
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
+
+
 
 class VideoJustificationAgent:
     GUIDELINES = """
@@ -21,8 +24,8 @@ class VideoJustificationAgent:
     10. Make your own decisions based on the data, dont just parrot back the data, but ofcourse dont make assumptions that arent present.
     """
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash"):
+        self.apiKey = api_key
         self.model = model
         self.messages = []
 
@@ -63,27 +66,26 @@ led to your conclusion.
 """
 
     def analyze(self, video_data: dict) -> str:
-        """Create prompt and return it, keeping conversation memory"""
         prompt = self._make_prompt(video_data)
-        
-        # Initialize messages if not already done
-        if not hasattr(self, "messages"):
-            self.messages = [{"role": "system", "content": "You are professional AI video data analyst."}]
-        
-        # Append new user prompt
-        self.messages.append({"role": "user", "content": prompt})
-        
-        # Send full conversation to the model
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=self.messages
-        )
-        
-        # Append assistant reply to conversation
-        reply = response.choices[0].message.content
+
+        url = "https://api.generativeai.googleapis.com/v1beta/models/{}/:generateMessage".format(self.model)
+        headers = {
+            "Authorization": f"Bearer {self.apiKey}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "prompt": {
+                "messages": [{"author": "user", "content": {"text": prompt}}]
+            }
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        result = response.json()
+        reply = result["candidates"][0]["content"][0]["text"] 
         self.messages.append({"role": "assistant", "content": reply})
-        
         return reply
+        
 
     def perform_news_cross_check(self, context, api_key):
         queries = self.generate_search_queries(context)
