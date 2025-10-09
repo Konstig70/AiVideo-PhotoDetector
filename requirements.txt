@@ -1,5 +1,5 @@
 openai
-opencv-python-headless
+opencv-python-headless==4.12.0.88
 mediapipe
 google-search-results
 streamlit
