@@ -1,3 +1,4 @@
+import pkg_resources
 import streamlit as st
 import tempfile
 import os
@@ -22,7 +23,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
+installed_packages = {p.key: p.version for p in pkg_resources.working_set}
+st.write(installed_packages)
 # Custom CSS for professional appearance
 st.markdown("""
 <style>
