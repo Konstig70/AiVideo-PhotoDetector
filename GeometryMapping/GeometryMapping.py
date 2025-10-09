@@ -140,7 +140,6 @@ class GeometryMapper:
         finally:      
             #Clean up
             capture.release()
-            cv2.destroyAllWindows()
             print("Waiting for motion thread to finish...")
             motion_queue.put(None)  # Sentinel to stop the thread
             motion_thread.join()
