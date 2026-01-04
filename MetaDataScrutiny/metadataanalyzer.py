@@ -15,6 +15,7 @@ class metadata:
             if track.track_type == "General":
                 self.metadata["device_info"] = track.encoded_library or track.writing_application
                 self.metadata["timestamps"] = track.tagged_date or track.file_last_modification_date
+        return self.metadata
     
     def analyze(self):
         self.extract_metadata()
