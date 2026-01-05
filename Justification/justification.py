@@ -1,5 +1,4 @@
 #Utilizes openAI API key to create justification based on analysis before.
-from openai import OpenAI
 import os
 import requests
 from serpapi import GoogleSearch
