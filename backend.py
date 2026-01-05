@@ -62,7 +62,7 @@ def saveFile(file):
     ext = file.filename.split('.')[-1]
     temp = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}", dir="uploads")
     file.save(temp.name)
-
+    print(temp.name)
     #Update the address so that we read the correct data 
     return temp.name
 
