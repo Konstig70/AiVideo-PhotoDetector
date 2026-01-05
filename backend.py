@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify 
+from flask import Flask, request 
 from pymediainfo import MediaInfo
 from flask_cors import CORS
 from MetaDataScrutiny.metadataanalyzer import metadata
