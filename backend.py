@@ -9,7 +9,7 @@ import uuid
 import os
 from google import genai
 import tempfile
-
+from google.genai import errors
 
 app = Flask(__name__)
 CORS(app)
@@ -51,11 +51,17 @@ def getAgentResponse(prompt):
     with open("apiavain.txt") as f:
         print("Opened file")
         client = genai.Client(api_key=f.read())
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        return response.text
+        try: 
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+            )
+
+            return response.text
+        except errors.APIError as e:
+            if e.code == 503: 
+                return "Agent currently too busy which means that written analysis is currently not available, however you can still take a look at the technical data below. Please try again later"
+            return f"An API error occured {e.message}"
 
 def saveFile(file):
     #Save video locally
